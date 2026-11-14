@@ -10,11 +10,11 @@
   const style = document.createElement("style");
   style.textContent = ".db-news-section{max-width:1200px;margin:48px auto;padding:0 20px}.db-news-section h2{font-size:clamp(1.8rem,4vw,3rem);margin:4px 0 24px}.db-news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px}.db-news-card{display:block;text-decoration:none;color:inherit;overflow:hidden;border:1px solid #ddd;border-radius:12px;background:#fff;color:#161616}.db-news-card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}.db-news-card div{padding:16px}.db-news-card small{font-weight:800;text-transform:uppercase;letter-spacing:.08em}.db-news-card h3{font-size:1.25rem;line-height:1.2;margin:8px 0}.db-news-card p{color:#555;margin:0}.db-news-card time{display:block;color:#666;font-size:.8rem;margin-top:12px}";
   document.head.appendChild(style);
-  main.appendChild(section);
+  main.prepend(section);
   const grid = section.querySelector(".db-news-grid");
   client.from("articles").select("id,title,slug,category,excerpt,image_url,published_at").eq("status","published").order("published_at",{ascending:false}).limit(12)
     .then(({data,error}) => {
-      if (error) { console.error("EL ÁREA: no se pudieron cargar las noticias", error.message); section.remove(); return; }
+      if (error) { console.error("EL ÁREA: no se pudieron cargar las noticias", error.message); grid.textContent = "No se pudieron cargar las noticias: " + error.message; return; }
       if (!data || !data.length) { section.remove(); return; }
       data.forEach(article => {
         const card = document.createElement("a"); card.className = "db-news-card"; card.href = "article.html?slug=" + encodeURIComponent(article.slug);
