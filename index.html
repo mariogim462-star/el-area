@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101820">
+<meta name="description" content="EL ÁREA: actualidad, análisis y noticias del fútbol.">
+<title>EL ÁREA | Fútbol</title>
+<style>
+:root{color-scheme:dark;--bg:#101820;--panel:#182630;--ink:#f4f5f3;--muted:#aab7bf;--accent:#d8ff3e;--line:#30414b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Arial,Helvetica,sans-serif}
+header{border-bottom:1px solid var(--line);padding:22px max(5vw,20px);display:flex;align-items:center;justify-content:space-between;gap:18px}
+.brand{font-size:clamp(2rem,5vw,3.4rem);font-weight:950;letter-spacing:-.07em}.brand span{color:var(--accent)}
+nav{display:flex;gap:18px;flex-wrap:wrap}nav a{color:var(--ink);text-decoration:none;font-size:.9rem;font-weight:700}
+main{max-width:1100px;margin:auto;padding:54px 22px}.eyebrow{color:var(--accent);font-size:.78rem;font-weight:900;letter-spacing:.18em;text-transform:uppercase}
+h1{font-size:clamp(2.5rem,7vw,5.7rem);line-height:.98;letter-spacing:-.06em;max-width:850px;margin:16px 0 22px}
+.lead{color:var(--muted);font-size:1.15rem;max-width:650px}
+.panel{margin-top:48px;background:var(--panel);border:1px solid var(--line);padding:clamp(22px,5vw,42px);border-radius:14px}
+.panel h2{font-size:1.5rem;margin:0 0 10px}.panel p{color:var(--muted);margin:0}
+.tag{display:inline-block;margin-top:22px;padding:8px 12px;background:var(--accent);color:#101820;font-weight:900;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;border-radius:4px}
+footer{border-top:1px solid var(--line);padding:24px max(5vw,20px);color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<header><div class="brand">EL <span>ÁREA</span></div><nav aria-label="Secciones"><a href="#actualidad">ACTUALIDAD</a><a href="#analisis">ANÁLISIS</a><a href="#ligas">LIGAS</a></nav></header>
+<main>
+<div class="eyebrow">El fútbol, en el centro</div>
+<h1>La actualidad del fútbol se juega aquí.</h1>
+<p class="lead">Noticias, análisis y seguimiento de las grandes competiciones. Estamos preparando la nueva edición digital de EL ÁREA.</p>
+<section class="panel" id="actualidad"><h2>Muy pronto, toda la actualidad</h2><p>La portada y el sistema editorial están en preparación. Próximamente podrás consultar noticias organizadas por equipos, competiciones y categorías.</p><span class="tag">Nueva web en preparación</span></section>
+<section class="panel" id="analisis"><h2>Análisis y opinión</h2><p>Un espacio para entender lo que pasa dentro y fuera del terreno de juego.</p></section>
+<section class="panel" id="ligas"><h2>Las grandes ligas</h2><p>Seguimiento del fútbol nacional e internacional.</p></section>
+</main>
+<footer>© <span id="year"></span> EL ÁREA · Información y pasión por el fútbol.</footer>
+<script>document.getElementById('year').textContent=new Date().getFullYear();</script>
+</body></html>
