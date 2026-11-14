@@ -37,6 +37,11 @@ grant execute on function public.is_el_area_admin() to anon, authenticated;
 
 alter table public.user_roles enable row level security;
 alter table public.articles enable row level security;
+
+-- Permisos SQL: las políticas RLS filtran las filas, pero también hacen falta GRANT.
+grant select on public.articles to anon, authenticated;
+grant select on public.user_roles to authenticated;
+grant insert, update, delete on public.articles to authenticated;
 drop policy if exists "Admins can read roles" on public.user_roles;
 create policy "Admins can read roles" on public.user_roles for select to authenticated using (public.is_el_area_admin());
 drop policy if exists "Public reads published articles" on public.articles;
