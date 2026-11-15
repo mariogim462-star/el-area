@@ -7,7 +7,7 @@ export async function onRequestPost({request,env}){
   const base=env.SUPABASE_URL.replace(/\/$/,"");
   const ur=await fetch(base+"/auth/v1/user",{headers:{apikey:env.SUPABASE_ANON_KEY,Authorization:auth}});if(!ur.ok)return json({error:"La sesión no es válida."},401);
   const user=await ur.json();
-  const sr=await fetch(base+"/rest/v1/subscriptions?user_id=eq."+encodeURIComponent(user.id)+"&select=stripe_customer_id",{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:"Bearer "+env.SUPABASE_SERVICE_ROLE_KEY}});
+  const sr=await fetch(base+"/rest/v1/subscriptions?user_id=eq."+encodeURIComponent(user.id)+"&select=stripe_customer_id",{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
   const rows=await sr.json();const customer=rows?.[0]?.stripe_customer_id;if(!customer)return json({error:"Todavía no hay una suscripción asociada a esta cuenta."},404);
   const form=new URLSearchParams({customer,return_url:env.SITE_URL.replace(/\/$/,"")+"/cuenta.html"});
   const r=await fetch("https://api.stripe.com/v1/billing_portal/sessions",{method:"POST",headers:{Authorization:"Bearer "+env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded"},body:form});
