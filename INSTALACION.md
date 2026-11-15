@@ -73,3 +73,24 @@ Las mejoras SEO están incluidas en el código:
 4. Revisa periódicamente las páginas indexadas, errores y consultas de búsqueda.
 
 No se ha conectado ninguna cuenta de analítica ni se han añadido píxeles publicitarios adicionales. Antes de incorporar medición o publicidad nueva, configura una plataforma de consentimiento válida para los visitantes del Espacio Económico Europeo. Para redes sociales, crea los perfiles oficiales y comparte enlaces a las noticias; no se han inventado ni enlazado perfiles que todavía no existen.
+
+
+## 6. Suscripciones EL ÁREA Premium (Stripe)
+
+El repositorio incorpora registro de lectores, inicio de sesión, contratación de Premium, portal de gestión/cancelación y protección de artículos exclusivos. **No se activa el cobro hasta completar la configuración de Stripe y ejecutar la migración SQL.**
+
+1. En Supabase > SQL Editor ejecuta `supabase/suscripciones-premium.sql`.
+2. En Stripe crea un producto **EL ÁREA Premium** con precio recurrente mensual de **3,99 EUR**. Copia el Price ID (empieza por `price_`).
+3. En Cloudflare Pages > Settings > Variables and Secrets configura en Production:
+   - `STRIPE_SECRET_KEY`: clave secreta de Stripe (nunca en GitHub).
+   - `STRIPE_PRICE_ID`: Price ID mensual de 3,99 €.
+   - `STRIPE_WEBHOOK_SECRET`: secreto del endpoint webhook.
+   - `SUPABASE_SERVICE_ROLE_KEY`: clave service_role del proyecto, solo como secreto de servidor.
+   - `SITE_URL`: URL pública canónica de EL ÁREA, por ejemplo `https://el-area.mariogim462.workers.dev`.
+   - Conserva también `SUPABASE_URL` y `SUPABASE_ANON_KEY` existentes.
+4. En Stripe > Developers > Webhooks crea un endpoint con URL `https://TU-DOMINIO/api/stripe-webhook` y suscribe estos eventos: `checkout.session.completed`, `customer.subscription.updated` y `customer.subscription.deleted`. Copia el signing secret `whsec_` a `STRIPE_WEBHOOK_SECRET`.
+5. En Stripe activa el Customer Portal para que los lectores puedan gestionar o cancelar su suscripción.
+6. Despliega de nuevo Pages. Los lectores pueden crear una cuenta en `/cuenta.html`, iniciar sesión y contratar Premium.
+7. En el panel de redacción, marca **Contenido exclusivo Premium** al editar una noticia. Su texto se guarda en una tabla protegida y no se entrega a lectores Gratis.
+
+La clave `SUPABASE_SERVICE_ROLE_KEY` y las claves de Stripe deben guardarse solo como secretos de Cloudflare. No las pegues en el chat ni en GitHub. Los pagos reales requieren completar estos pasos en las cuentas de Stripe, Supabase y Cloudflare; el código por sí solo no activa cargos.
