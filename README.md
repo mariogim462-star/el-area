@@ -10,6 +10,8 @@ Periódico digital de fútbol en español.
 - `supabase-config.js`: configuración pública del cliente (valores de ejemplo pendientes).
 - `supabase/schema.sql`: tablas, permisos RLS y almacenamiento de fotografías.
 - `ads.txt`: declaración de vendedor autorizado para AdSense.
+- `robots.txt` y `functions/sitemap.xml.js`: rastreo y sitemap dinámico de noticias publicadas.
+- `favicon.svg`: identidad visual de EL ÁREA para pestañas y marcadores.
 - `INSTALACION.md`: guía para conectar Supabase y desplegar en Cloudflare Pages.
 
 ## Activación
@@ -24,3 +26,11 @@ Sigue los pasos de `INSTALACION.md`. El código ya está preparado, pero el pane
 - No requiere claves secretas ni cambios SQL adicionales.
 
 - La generación de noticias usa `functions/api/generate-news.js` (Cloudflare Pages Functions), la API de OpenAI con búsqueda web y variables/secretos de servidor. Consulta `INSTALACION.md` para configurarlo.
+
+
+## SEO y difusión
+- La portada incluye metadatos para buscadores y redes sociales, identidad editorial estructurada y botón para compartir el sitio.
+- Cada noticia publicada genera metadatos sociales y datos estructurados `NewsArticle` desde su página.
+- `/sitemap.xml` genera el índice de portada y noticias publicadas desde Supabase; `/robots.txt` lo comunica a los buscadores.
+- Tras desplegar, registra el dominio en Google Search Console y envía `https://el-area.mariogim462.workers.dev/sitemap.xml`. La verificación de propiedad debe completarla el titular del dominio.
+- Las redes sociales deben enlazar siempre a la noticia original. Utiliza imágenes propias o con licencia y revisa los datos antes de publicar.
