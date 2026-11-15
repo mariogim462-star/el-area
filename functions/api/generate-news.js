@@ -42,7 +42,7 @@ export async function onRequestPost({ request, env }) {
         title: { type: "string" },
         excerpt: { type: "string" },
         content: { type: "string" },
-        category: { type: "string" },
+        category: { type: "string", enum: ["Actualidad", "LaLiga", "Premier League", "Champions League", "Selección española", "Fútbol internacional", "Fútbol femenino", "Análisis", "Mercado"] },
         sources: { type: "array", items: { type: "object", additionalProperties: false, properties: {
           name: { type: "string" }, url: { type: "string" }, contribution: { type: "string" }
         }, required: ["name", "url", "contribution"] } },
@@ -105,8 +105,8 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-export async function onRequest({ request }) {
+export async function onRequest({ request, env }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-methods": "POST, OPTIONS", "access-control-allow-headers": "Authorization, Content-Type" } });
   if (request.method !== "POST") return json({ error: "Método no permitido." }, 405);
-  return onRequestPost({ request, env: arguments[0].env });
+  return onRequestPost({ request, env });
 }
