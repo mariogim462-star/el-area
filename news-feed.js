@@ -1,126 +1,31 @@
 (() => {
-  const url = window.EL_AREA_SUPABASE_URL;
-  const key = window.EL_AREA_SUPABASE_ANON_KEY;
-  if (!url || !key || url.includes("TU-PROYECTO") || key.includes("PEGA_AQUI")) return;
-
-  const client = window.supabase.createClient(url, key);
-  const main = document.querySelector("main") || document.body;
-  const section = document.createElement("section");
-  section.className = "db-news-section";
-  section.innerHTML = `
-    <section class="db-today">
-      <div class="section-heading"><p class="eyebrow">La actualidad del día</p><h2>Noticias de hoy</h2></div>
-      <div class="db-news-grid" id="db-today-grid" aria-live="polite"></div>
-      <p class="db-empty" id="db-today-empty" hidden>Hoy todavía no hay noticias publicadas.</p>
-    </section>
-    <section class="db-archive" id="db-archive" hidden>
-      <div class="section-heading"><p class="eyebrow">De días anteriores</p><h2>Noticias anteriores</h2></div>
-      <div id="db-archive-days"></div>
-    </section>`;
-  const style = document.createElement("style");
-  style.textContent = `
-    .db-news-section{max-width:1200px;margin:48px auto;padding:0 20px}
-    .db-news-section h2{font-size:clamp(1.8rem,4vw,3rem);margin:4px 0 24px}
-    .db-news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px}
-    .db-news-card{display:block;text-decoration:none;color:inherit;overflow:hidden;border:1px solid #ddd;border-radius:12px;background:#fff}
-    .db-news-card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
-    .db-news-card>div{padding:16px}
-    .db-news-card small{font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-    .db-news-card h3{font-size:1.25rem;line-height:1.2;margin:8px 0}
-    .db-news-card p{color:#555;margin:0}
-    .db-news-card time{display:block;color:#666;font-size:.8rem;margin-top:12px}
-    .db-archive{margin-top:52px;padding-top:30px;border-top:3px solid #171717}
-    .db-archive-day{margin:28px 0}
-    .db-archive-day h3{font-size:1.15rem;text-transform:capitalize;border-bottom:1px solid #ddd;padding-bottom:10px;margin-bottom:18px}
-    .db-empty{color:#666;padding:12px 0}
-  `;
-  document.head.appendChild(style);
-  main.prepend(section);
-
-  const dateParts = (date) => {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit"
-    }).formatToParts(date);
-    const get = type => parts.find(part => part.type === type).value;
-    return get("year") + "-" + get("month") + "-" + get("day");
-  };
-  const todayKey = dateParts(new Date());
-
-  const makeCard = article => {
-    const card = document.createElement("a");
-    card.className = "db-news-card";
-    card.href = "article.html?slug=" + encodeURIComponent(article.slug);
-    if (article.image_url) {
-      const img = document.createElement("img");
-      img.src = article.image_url;
-      img.alt = article.title;
-      img.loading = "lazy";
-      card.appendChild(img);
-    }
-    const body = document.createElement("div");
-    const category = document.createElement("small");
-    category.textContent = article.category || "Fútbol";
-    const title = document.createElement("h3");
-    title.textContent = article.title;
-    const excerpt = document.createElement("p");
-    excerpt.textContent = article.excerpt || "";
-    body.append(category, title, excerpt);
-    if (article.published_at) {
-      const time = document.createElement("time");
-      time.dateTime = article.published_at;
-      time.textContent = new Date(article.published_at).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" });
-      body.appendChild(time);
-    }
-    card.appendChild(body);
-    return card;
-  };
-
-  client.from("articles")
-    .select("id,title,slug,category,excerpt,image_url,published_at")
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
-    .limit(1000)
-    .then(({ data, error }) => {
-      const todayGrid = section.querySelector("#db-today-grid");
-      if (error) {
-        console.error("EL ÁREA: no se pudieron cargar las noticias", error.message);
-        todayGrid.textContent = "No se pudieron cargar las noticias: " + error.message;
-        return;
-      }
-      const articles = data || [];
-      const today = articles.filter(article => article.published_at && dateParts(new Date(article.published_at)) === todayKey);
-      const previous = articles.filter(article => !article.published_at || dateParts(new Date(article.published_at)) < todayKey);
-
-      today.forEach(article => todayGrid.appendChild(makeCard(article)));
-      if (!today.length) section.querySelector("#db-today-empty").hidden = false;
-
-      if (previous.length) {
-        const archive = section.querySelector("#db-archive");
-        const days = section.querySelector("#db-archive-days");
-        archive.hidden = false;
-        const groups = new Map();
-        previous.forEach(article => {
-          const key = article.published_at ? dateParts(new Date(article.published_at)) : "sin-fecha";
-          if (!groups.has(key)) groups.set(key, []);
-          groups.get(key).push(article);
-        });
-        [...groups.entries()].sort((a, b) => b[0].localeCompare(a[0])).forEach(([key, group]) => {
-          const day = document.createElement("section");
-          day.className = "db-archive-day";
-          const heading = document.createElement("h3");
-          heading.textContent = key === "sin-fecha" ? "Publicaciones anteriores" :
-            new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", weekday: "long", day: "numeric", month: "long", year: "numeric" })
-              .format(new Date(key + "T12:00:00+01:00"));
-          const grid = document.createElement("div");
-          grid.className = "db-news-grid";
-          group.forEach(article => grid.appendChild(makeCard(article)));
-          day.append(heading, grid);
-          days.appendChild(day);
-        });
-      }
-    })
-    .catch(error => {
-      console.error("EL ÁREA: error inesperado al cargar noticias", error);
-      section.querySelector("#db-today-grid").textContent = "No se pudieron cargar las noticias.";
-    });
+ const url=window.EL_AREA_SUPABASE_URL,key=window.EL_AREA_SUPABASE_ANON_KEY;
+ if(!url||!key||!window.supabase)return;
+ const db=window.supabase.createClient(url,key),main=document.querySelector("main")||document.body;
+ const s=document.createElement("section");s.className="db-news-section";
+ s.innerHTML=`<div class="db-head"><div><small>EL ÁREA · ACTUALIDAD</small><h2 id="db-heading">Noticias de hoy</h2></div><label>Buscar <input id="db-q" type="search" placeholder="Equipo, jugador, noticia…"></label></div>
+ <div class="db-tools"><label>Categoría <select id="db-cat"><option value="">Todas</option></select></label><label>Fecha <input id="db-date" type="date"></label><button id="db-today">Hoy</button><button id="db-favs">Mis favoritos</button></div>
+ <section id="db-feature-wrap" hidden><h3>Noticias destacadas</h3><div class="db-grid" id="db-feature"></div></section>
+ <div class="db-grid" id="db-current" aria-live="polite"></div><p id="db-empty" hidden>No hay noticias para esta búsqueda.</p>
+ <section class="db-pop"><h3>Las más leídas</h3><div id="db-pop-list"></div></section>
+ <section id="db-archive" hidden><h2>Noticias anteriores</h2><div id="db-days"></div></section>`;
+ const st=document.createElement("style");st.textContent=`.db-news-section{max-width:1200px;margin:42px auto;padding:0 20px;color:#171717}.db-head{display:flex;justify-content:space-between;align-items:end;gap:16px;border-bottom:3px solid #c8102e;padding-bottom:14px}.db-head small{color:#c8102e;font-weight:900;letter-spacing:1px}.db-head h2,.db-news-section>section h2{font-size:clamp(25px,4vw,38px);margin:6px 0;font-weight:900}.db-head label,.db-tools label{font-size:11px;font-weight:800;text-transform:uppercase;display:grid;gap:5px}.db-head input,.db-tools input,.db-tools select{padding:10px;border:1px solid #ccc;border-radius:4px;font:inherit;min-width:170px}.db-tools{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:16px 0 25px}.db-tools button{padding:11px 14px;background:#171717;color:white;border:0;font-weight:800;cursor:pointer}.db-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:18px;margin:16px 0 28px}.db-card{position:relative;border:1px solid #ddd;background:white;min-width:0}.db-card>a{color:inherit;text-decoration:none;display:block}.db-card img{width:100%;aspect-ratio:16/9;object-fit:cover;background:#eee}.db-card-copy{padding:14px}.db-card small{color:#c8102e;font-weight:900;text-transform:uppercase}.db-card h3{font-size:19px;line-height:1.2;margin:7px 0}.db-card p{font-size:13px;line-height:1.5;color:#555}.db-card time{font-size:11px;color:#777}.db-fav{position:absolute;right:8px;top:8px;border:0;border-radius:50%;background:white;width:36px;height:36px;font-size:20px;cursor:pointer}.db-fav[aria-pressed=true]{color:#c8102e}.db-label{position:absolute;left:8px;top:8px;background:#c8102e;color:white;padding:5px 8px;font-size:10px;font-weight:900}.db-pop,#db-archive{margin-top:35px;padding-top:20px;border-top:2px solid #171717}.db-pop h3,#db-archive h2{font-size:22px;font-weight:900}.db-pop-row{padding:10px 0;border-bottom:1px solid #ddd;display:flex;gap:12px}.db-pop-row b{color:#c8102e}.db-pop-row a{color:inherit;text-decoration:none;font-weight:800}.db-day{margin:25px 0}.db-day h3{text-transform:capitalize;border-bottom:1px solid #ddd;padding-bottom:9px}@media(max-width:650px){.db-head{display:block}.db-head label{margin-top:12px}.db-head input{width:100%}.db-tools label{flex:1}.db-tools input,.db-tools select{min-width:0;width:100%}}`;
+ document.head.append(st);main.prepend(s);const $=id=>s.querySelector("#"+id);
+ const day=d=>new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Madrid",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);
+ const today=day(new Date());$("db-date").value=today;let articles=[],date=today,favsOnly=false;
+ const favs=()=>{try{return JSON.parse(localStorage.getItem("el-area-favoritos")||"[]")}catch{return[]}};
+ function makeCard(a){const c=document.createElement("article");c.className="db-card";const link=document.createElement("a");link.href="article.html?slug="+encodeURIComponent(a.slug);
+ if(a.image_url){const im=document.createElement("img");im.src=a.image_url;im.alt=a.image_alt||a.title;im.loading="lazy";link.append(im)}
+ const copy=document.createElement("div");copy.className="db-card-copy";const cat=document.createElement("small"),h=document.createElement("h3"),p=document.createElement("p"),t=document.createElement("time");cat.textContent=a.category||"Fútbol";h.textContent=a.title;p.textContent=a.excerpt||"";t.textContent=a.published_at?new Date(a.published_at).toLocaleString("es-ES",{timeZone:"Europe/Madrid",dateStyle:"medium",timeStyle:"short"}):"";copy.append(cat,h,p,t);link.append(copy);c.append(link);
+ const b=document.createElement("button"),saved=favs().includes(a.id);b.className="db-fav";b.type="button";b.textContent=saved?"♥":"♡";b.setAttribute("aria-pressed",String(saved));b.title="Guardar en favoritos";b.onclick=()=>{const x=favs(),i=x.indexOf(a.id);if(i<0)x.push(a.id);else x.splice(i,1);localStorage.setItem("el-area-favoritos",JSON.stringify(x));render()};c.append(b);
+ if(a.is_featured){const tag=document.createElement("span");tag.className="db-label";tag.textContent="Destacada";c.append(tag)}return c}
+ function render(){const q=$("db-q").value.trim().toLocaleLowerCase("es"),cat=$("db-cat").value;let list=articles.filter(a=>(!cat||a.category===cat)&&(!q||(a.title+" "+a.excerpt+" "+a.category).toLocaleLowerCase("es").includes(q)));if(favsOnly)list=list.filter(a=>favs().includes(a.id));
+ $("db-heading").textContent=favsOnly?"Mis noticias favoritas":date===today?"Noticias de hoy":"Noticias del "+new Date(date+"T12:00:00").toLocaleDateString("es-ES");
+ const current=list.filter(a=>a.published_at&&day(new Date(a.published_at))===date);$("db-current").replaceChildren(...current.map(makeCard));$("db-empty").hidden=!!current.length;
+ const featured=list.filter(a=>a.is_featured&&a.published_at&&day(new Date(a.published_at))===today);$("db-feature-wrap").hidden=favsOnly||date!==today||!featured.length;$("db-feature").replaceChildren(...featured.map(makeCard));
+ const pop=$("db-pop-list");pop.replaceChildren();list.slice().sort((a,b)=>(b.view_count||0)-(a.view_count||0)).slice(0,5).forEach((a,i)=>{const row=document.createElement("div");row.className="db-pop-row";const n=document.createElement("b");n.textContent=String(i+1);const l=document.createElement("a");l.href="article.html?slug="+encodeURIComponent(a.slug);l.textContent=a.title;row.append(n,l);pop.append(row)});
+ const prev=list.filter(a=>!a.published_at||day(new Date(a.published_at))<today),groups=new Map();prev.forEach(a=>{const k=a.published_at?day(new Date(a.published_at)):"sin-fecha";if(!groups.has(k))groups.set(k,[]);groups.get(k).push(a)});
+ const days=$("db-days");days.replaceChildren();[...groups.entries()].sort((a,b)=>b[0].localeCompare(a[0])).forEach(([k,arr])=>{const d=document.createElement("section");d.className="db-day";const h=document.createElement("h3");h.textContent=k==="sin-fecha"?"Publicaciones anteriores":new Date(k+"T12:00:00").toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",year:"numeric"});const g=document.createElement("div");g.className="db-grid";arr.forEach(a=>g.append(makeCard(a)));d.append(h,g);days.append(d)});$("db-archive").hidden=!groups.size||date!==today||favsOnly}
+ $("db-q").addEventListener("input",render);$("db-cat").addEventListener("change",render);$("db-date").addEventListener("change",()=>{date=$("db-date").value||today;favsOnly=false;render()});$("db-today").onclick=()=>{$("db-date").value=today;date=today;favsOnly=false;render()};$("db-favs").onclick=()=>{favsOnly=!favsOnly;$("db-favs").textContent=favsOnly?"Ver todas":"Mis favoritos";render()};
+ db.from("articles").select("id,title,slug,category,excerpt,image_url,image_alt,published_at,is_featured,view_count").eq("status","published").lte("published_at",new Date().toISOString()).order("published_at",{ascending:false}).limit(1000).then(({data,error})=>{if(error){$("db-current").textContent="No se pudieron cargar las noticias: "+error.message;return}articles=data||[];[...new Set(articles.map(a=>a.category).filter(Boolean))].sort().forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;$("db-cat").append(o)});render()}).catch(()=>$("db-current").textContent="No se pudieron cargar las noticias.");
 })();
