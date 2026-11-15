@@ -46,7 +46,7 @@
       const source = el('a', 'muted', 'Abrir fuente original ↗');
       source.href = item.link; source.target = '_blank'; source.rel = 'noopener noreferrer';
       const actions = el('div', 'actions');
-      const draft = el('button', '', 'Pasar al editor como borrador');
+      const draft = el('button', '', 'Preparar borrador en el editor');
       draft.type = 'button';
       draft.addEventListener('click', () => prepareDraft(item));
       const prompt = el('button', 'secondary', 'Copiar instrucciones para IA');
