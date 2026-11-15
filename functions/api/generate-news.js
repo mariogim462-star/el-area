@@ -88,7 +88,7 @@ export async function onRequestPost({ request, env }) {
       try { const u = new URL(source.url); return u.protocol === "https:" || u.protocol === "http:"; } catch (_) { return false; }
     }).slice(0, 8) : [];
     const notes = Array.isArray(draft.verification_notes) ? draft.verification_notes.slice(0, 8) : [];
-    if (!draft.title || !draft.excerpt || !draft.content || sources.length < 1) {
+    if (!draft.title || !draft.excerpt || !draft.content || sources.length < 2) {
       return json({ error: "No se pudo verificar suficiente información para preparar un borrador fiable. Revisa las fuentes manualmente." }, 422);
     }
     return json({
