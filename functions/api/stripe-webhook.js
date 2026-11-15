@@ -28,7 +28,7 @@ export async function onRequestPost({request,env}){
   }else if(event.type==="customer.subscription.updated"||event.type==="customer.subscription.deleted"){
    sub=event.data.object;customerId=typeof sub.customer==="string"?sub.customer:sub.customer?.id;userId=sub.metadata?.user_id;
    if(!userId&&customerId){
-    const r=await fetch(env.SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/subscriptions?stripe_customer_id=eq."+encodeURIComponent(customerId)+"&select=user_id",{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY,Authorization:"Bearer "+env.SUPABASE_SERVICE_ROLE_KEY}});
+    const r=await fetch(env.SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/subscriptions?stripe_customer_id=eq."+encodeURIComponent(customerId)+"&select=user_id",{headers:{apikey:env.SUPABASE_SERVICE_ROLE_KEY}});
     const rows=await r.json();userId=rows?.[0]?.user_id;
    }
    if(!userId||!customerId)return json({received:true});
