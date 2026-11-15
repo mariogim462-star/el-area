@@ -2,6 +2,7 @@
 -- Ejecutar una sola vez en Supabase > SQL Editor.
 alter table public.articles add column if not exists is_featured boolean not null default false;
 alter table public.articles add column if not exists view_count integer not null default 0;
+alter table public.articles add column if not exists gallery_urls jsonb not null default '[]'::jsonb;
 create index if not exists articles_published_at_idx on public.articles(status,published_at desc);
 drop policy if exists "Public reads published articles" on public.articles;
 create policy "Public reads published articles" on public.articles for select to anon, authenticated using ((status = 'published' and published_at <= now()) or public.is_el_area_admin());
