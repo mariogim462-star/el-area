@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="EL ÁREA: actualidad del fútbol, noticias, análisis tácticos, fichajes, historias y talento joven. Información contrastada y una mirada propia al juego.">
 <link rel="canonical" href="https://el-area.mariogim462.workers.dev/">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="es_ES">
 <meta property="og:site_name" content="EL ÁREA">
@@ -480,6 +481,13 @@ if (savedConsent === 'accepted-ads') loadAdsenseAfterCmp();
 document.getElementById('acceptEssential').addEventListener('click',()=>{ saveConsent('accepted-ads'); loadAdsenseAfterCmp(); });
 document.getElementById('rejectOptional').addEventListener('click',()=>saveConsent('optional-rejected'));
 document.getElementById('reopenConsent').addEventListener('click',()=>banner.classList.add('show'));
+
+// Fecha de edición automática para que la portada no muestre un día antiguo.
+const edition=document.querySelector('.edition');
+if(edition){
+ const dateLabel=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'short',year:'numeric',timeZone:'Europe/Madrid'}).format(new Date()).replaceAll('.','').toUpperCase();
+ edition.innerHTML='Actualidad y pasión por el juego <b>●</b> '+dateLabel;
+}
 
 // Compartir la portada para facilitar recomendaciones entre lectores.
 const shareSiteButton=document.getElementById('shareSite');
