@@ -6,6 +6,7 @@
  const db=window.supabase.createClient(url,key);
  const {data,error}=await db.from('articles').select('title,category,excerpt,content,image_url,image_alt,published_at').eq('slug',slug).eq('status','published').maybeSingle();
  if(error||!data){fail('No encontramos esa noticia o todavía no está publicada.');return;}
+ try { const seenKey='el-area-vista-'+data.slug; if(!sessionStorage.getItem(seenKey)){ await db.rpc('register_article_view',{article_uuid:data.id}); sessionStorage.setItem(seenKey,'1'); } } catch(e) { console.debug('No se pudo registrar la lectura',e); }
  document.title=data.title+' · EL ÁREA';
  root.replaceChildren();
  const cat=document.createElement('div');cat.className='category';cat.textContent=data.category||'Fútbol';
