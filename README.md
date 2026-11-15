@@ -18,7 +18,9 @@ Sigue los pasos de `INSTALACION.md`. El código ya está preparado, pero el pane
 **Seguridad:** no subir contraseñas ni claves `service_role` a este repositorio público.
 ## Radar editorial
 - En `admin.html`, el panel privado incluye un radar de titulares recientes de fútbol procedentes de Google Noticias.
-- El radar permite filtrar por sección, abrir la fuente original, preparar un borrador en el editor y copiar instrucciones para redactar una versión original con IA.
-- Los titulares no se publican automáticamente. La redacción debe contrastar la información, redactar el texto propio, añadir una imagen autorizada y guardar/publicar manualmente.
+- El radar permite filtrar por sección, abrir la fuente original y pedir a la IA una noticia original contrastada con varias fuentes web. El texto, los enlaces consultados y la firma «— EL ÁREA» se guardan automáticamente como borrador editable.
+- Los borradores generados por IA nunca se publican automáticamente. La redacción debe revisar los datos, corregir el texto y añadir una imagen autorizada antes de publicar manualmente.
 - El radar usa el feed RSS de Google Noticias a través de RSS2JSON; depende de la disponibilidad y límites de ese servicio externo.
 - No requiere claves secretas ni cambios SQL adicionales.
+
+- La generación de noticias usa `functions/api/generate-news.js` (Cloudflare Pages Functions), la API de OpenAI con búsqueda web y variables/secretos de servidor. Consulta `INSTALACION.md` para configurarlo.
