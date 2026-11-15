@@ -49,14 +49,7 @@
       const draft = el('button', '', 'Generar noticia con IA y guardar borrador');
       draft.type = 'button';
       draft.addEventListener('click', () => generateDraft(item, draft));
-      const prompt = el('button', 'secondary', 'Copiar instrucciones para IA');
-      prompt.type = 'button';
-      prompt.addEventListener('click', async () => {
-        const text = 'Actúa como periodista de EL ÁREA, periódico digital de fútbol en español. Redacta una noticia original, no copies ni traduzcas literalmente la fuente. Usa solo los datos verificables de la fuente; no inventes declaraciones, cifras, fechas ni contexto. Si es un rumor, identifícalo claramente como rumor y atribúyelo. Si falta confirmación, dilo. Devuelve: 1) titular claro, 2) entradilla de 2 frases, 3) noticia de 250-350 palabras con tono periodístico natural, 4) categoría sugerida, 5) lista de datos que conviene comprobar antes de publicar. No afirmes que has leído contenido al que no tienes acceso.\n\nTitular detectado: ' + item.title + '\nResumen del feed: ' + item.excerpt + '\nFuente original: ' + item.link;
-        try { await navigator.clipboard.writeText(text); status.textContent = 'Instrucciones copiadas. Pégalas en ChatGPT junto con la fuente para preparar un texto original y verificarlo.'; }
-        catch (_) { status.textContent = 'No se pudo copiar automáticamente. Abre la fuente y copia el titular y el enlace manualmente.'; }
-      });
-      actions.append(draft, prompt);
+      actions.append(draft);
       card.append(heading, meta, excerpt, source, actions);
       results.append(card);
     });
