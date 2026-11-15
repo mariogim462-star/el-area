@@ -3,6 +3,8 @@
 alter table public.articles add column if not exists is_featured boolean not null default false;
 alter table public.articles add column if not exists view_count integer not null default 0;
 create index if not exists articles_published_at_idx on public.articles(status,published_at desc);
+drop policy if exists "Public reads published articles" on public.articles;
+create policy "Public reads published articles" on public.articles for select to anon, authenticated using ((status = 'published' and published_at <= now()) or public.is_el_area_admin());
 create or replace function public.register_article_view(article_uuid uuid)
 returns void language plpgsql security definer set search_path=public
 as $$
