@@ -46,9 +46,9 @@
       const source = el('a', 'muted', 'Abrir fuente original ↗');
       source.href = item.link; source.target = '_blank'; source.rel = 'noopener noreferrer';
       const actions = el('div', 'actions');
-      const draft = el('button', '', 'Preparar borrador en el editor');
+      const draft = el('button', '', 'Generar noticia con IA y guardar borrador');
       draft.type = 'button';
-      draft.addEventListener('click', () => prepareDraft(item));
+      draft.addEventListener('click', () => generateDraft(item, draft));
       const prompt = el('button', 'secondary', 'Copiar instrucciones para IA');
       prompt.type = 'button';
       prompt.addEventListener('click', async () => {
@@ -61,20 +61,41 @@
       results.append(card);
     });
   }
-  function prepareDraft(item) {
-    document.getElementById('title').value = item.title.slice(0, 180);
-    document.getElementById('category').value = item.category;
-    document.getElementById('excerpt').value = item.excerpt.slice(0, 400);
-    document.getElementById('content').value = 'BORRADOR PENDIENTE DE REDACCIÓN Y VERIFICACIÓN.\n\nNo publiques este texto tal cual. Abre la fuente original, contrasta los datos con una segunda fuente fiable y redacta una noticia propia.\n\nFuente original: ' + item.link + '\nMedio detectado: ' + (item.source || 'Google Noticias');
-    document.getElementById('status').value = 'draft';
-    document.getElementById('featured').checked = false;
-    document.getElementById('publishAt').value = '';
-    document.getElementById('imageAlt').value = '';
-    document.getElementById('articleId').value = '';
-    document.getElementById('formTitle').textContent = 'Nuevo borrador desde el radar';
-    status.textContent = 'Titular y fuente enviados al editor. Añade una fotografía, redacta y verifica el contenido; después guarda como borrador.';
-    document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.getElementById('content').focus();
+  async function generateDraft(item, button) {
+    button.disabled = true;
+    const originalLabel = button.textContent;
+    button.textContent = 'Investigando fuentes y redactando…';
+    status.textContent = 'La IA está contrastando la noticia con varias fuentes. Puede tardar un poco…';
+    try {
+      const { data: sessionData, error: sessionError } = await db.auth.getSession();
+      const token = sessionData && sessionData.session && sessionData.session.access_token;
+      if (sessionError || !token) throw new Error('Tu sesión ha caducado. Vuelve a iniciar sesión en el panel.');
+      const response = await fetch('/api/generate-news', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ title: item.title, url: item.link, category: item.category })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo generar el borrador.');
+      document.getElementById('title').value = data.title;
+      document.getElementById('category').value = data.category;
+      document.getElementById('excerpt').value = data.excerpt;
+      document.getElementById('content').value = data.content;
+      document.getElementById('status').value = 'draft';
+      document.getElementById('featured').checked = false;
+      document.getElementById('publishAt').value = '';
+      document.getElementById('imageAlt').value = '';
+      document.getElementById('articleId').value = '';
+      document.getElementById('formTitle').textContent = 'Borrador generado por IA · pendiente de revisión';
+      document.getElementById('articleForm').requestSubmit();
+      status.textContent = 'La IA ha preparado el texto y se está guardando como borrador. Revisa el titular, el contenido, las fuentes y añade una fotografía antes de publicar.';
+      document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      status.textContent = 'No se ha guardado ningún borrador: ' + error.message;
+    } finally {
+      button.disabled = false;
+      button.textContent = originalLabel;
+    }
   }
   async function loadRadar() {
     searchButton.disabled = true;
