@@ -18,9 +18,9 @@
   ];
   const cleanText = html => {
     const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
-    return (doc.body.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 360);
+    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 360);
   };
-  const normalize = s => String(s || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const normalize = s => String(s || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
   const el = (tag, cls, value) => {
     const node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -111,7 +111,7 @@
           const title = cleanText(raw.title);
           const key = normalize(title);
           const date = raw.pubDate ? new Date(raw.pubDate) : null;
-          if (!title || !raw.link || !/^https?:\\/\\//i.test(raw.link) || (date && (!Number.isFinite(date.getTime()) || date.getTime() < cutoff)) || seen.has(key)) continue;
+          if (!title || !raw.link || !/^https?:\/\//i.test(raw.link) || (date && (!Number.isFinite(date.getTime()) || date.getTime() < cutoff)) || seen.has(key)) continue;
           seen.add(key);
           selected.push({
             title, excerpt: cleanText(raw.description || raw.content), link: raw.link,
