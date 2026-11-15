@@ -42,7 +42,7 @@ export async function onRequestPost({ request, env }) {
         title: { type: "string" },
         excerpt: { type: "string" },
         content: { type: "string" },
-        category: { type: "string", enum: ["Actualidad", "LaLiga", "Premier League", "Champions League", "Selección española", "Fútbol internacional", "Fútbol femenino", "Análisis", "Mercado"] },
+        category: { type: "string", enum: ["Actualidad", "Noticias de hoy", "LaLiga", "Premier League", "Serie A", "Champions League", "Selección española", "Fútbol internacional", "Fútbol femenino", "Análisis", "Mercado"] },
         sources: { type: "array", items: { type: "object", additionalProperties: false, properties: {
           name: { type: "string" }, url: { type: "string" }, contribution: { type: "string" }
         }, required: ["name", "url", "contribution"] } },
