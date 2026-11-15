@@ -4,7 +4,7 @@
  if(!url||!key||url.includes('TU-PROYECTO')||key.includes('PEGA_AQUI')){fail('La conexión de noticias aún no está configurada.');return;}
  const slug=new URLSearchParams(location.search).get('slug');if(!slug){fail('No se ha indicado qué noticia quieres leer.');return;}
  const db=window.supabase.createClient(url,key);
- const {data,error}=await db.from('articles').select('id,title,category,excerpt,content,image_url,image_alt,gallery_urls,published_at').eq('slug',slug).eq('status','published').lte('published_at',new Date().toISOString()).maybeSingle();
+ const {data,error}=await db.from('articles').select('id,title,slug,category,excerpt,content,image_url,image_alt,gallery_urls,published_at').eq('slug',slug).eq('status','published').lte('published_at',new Date().toISOString()).maybeSingle();
  if(error||!data){fail('No encontramos esa noticia o todavía no está publicada.');return;}
  try { const seenKey='el-area-vista-'+data.slug; if(!sessionStorage.getItem(seenKey)){ await db.rpc('register_article_view',{article_uuid:data.id}); sessionStorage.setItem(seenKey,'1'); } } catch(e) { console.debug('No se pudo registrar la lectura',e); }
  document.title=data.title+' · EL ÁREA';
