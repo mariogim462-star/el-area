@@ -9,21 +9,18 @@
   const editorPanel = document.getElementById('editorPanel');
   let items = [];
 
-  const categoryFor = title => {
-    const t = title.toLocaleLowerCase('es');
-    if (/real madrid|mbapp[eé]|vin[ií]cius|bellingham|ancelotti/.test(t)) return 'Real Madrid';
-    if (/barcelona|barça|lamine yamal|pedri|flick/.test(t)) return 'Barcelona';
-    if (/fichaj|traspas|mercado|renovaci[oó]n|cesi[oó]n/.test(t)) return 'Mercado';
-    if (/premier league|arsenal|liverpool|manchester|chelsea|tottenham/.test(t)) return 'Premier League';
-    if (/champions|uefa|europa league/.test(t)) return 'Champions League';
-    if (/laliga|la liga|atl[eé]tico|sevilla|betis|valencia|girona/.test(t)) return 'LaLiga';
-    return 'Fútbol internacional';
-  };
+  const categories = [
+    { name: 'LaLiga', query: '(LaLiga OR "La Liga" OR fútbol español) when:1d' },
+    { name: 'Premier League', query: '("Premier League" OR Arsenal OR Liverpool OR Chelsea OR "Manchester City" OR "Manchester United") when:1d' },
+    { name: 'Actualidad', query: '(fútbol OR UEFA OR FIFA OR selecciones OR fútbol femenino OR Champions) when:1d' },
+    { name: 'Serie A', query: '("Serie A" OR "calcio italiano" OR Juventus OR Inter OR Milan OR Napoli OR Roma) when:1d' },
+    { name: 'Noticias de hoy', query: '(fútbol OR fichajes OR LaLiga OR Premier OR "Serie A" OR Champions) when:1d' }
+  ];
   const cleanText = html => {
     const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
-    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 360);
+    return (doc.body.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 360);
   };
-  const normalize = s => String(s || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  const normalize = s => String(s || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
   const el = (tag, cls, value) => {
     const node = document.createElement(tag);
     if (cls) node.className = cls;
@@ -37,6 +34,8 @@
       results.append(el('p', 'muted', 'No hay titulares para este filtro. Prueba otra sección o vuelve a buscar.'));
       return;
     }
+    const count = el('p', 'muted', 'Mostrando ' + shown.length + ' propuestas. Cada noticia es una pista que debe revisarse antes de publicar.');
+    results.append(count);
     shown.forEach(item => {
       const card = el('article', 'item');
       card.style.cssText = 'display:block;border:1px solid #e1e6e9;border-radius:10px;padding:14px;margin:12px 0';
@@ -46,7 +45,7 @@
       const source = el('a', 'muted', 'Abrir fuente original ↗');
       source.href = item.link; source.target = '_blank'; source.rel = 'noopener noreferrer';
       const actions = el('div', 'actions');
-      const draft = el('button', '', 'Generar noticia con IA y guardar borrador');
+      const draft = el('button', '', 'Generar borrador con IA');
       draft.type = 'button';
       draft.addEventListener('click', () => generateDraft(item, draft));
       actions.append(draft);
@@ -81,7 +80,7 @@
       document.getElementById('articleId').value = '';
       document.getElementById('formTitle').textContent = 'Borrador generado por IA · pendiente de revisión';
       document.getElementById('articleForm').requestSubmit();
-      status.textContent = 'La IA ha preparado el texto y se está guardando como borrador. Revisa el titular, el contenido, las fuentes y añade una fotografía antes de publicar.';
+      status.textContent = 'Borrador guardado. Revisa el titular, el contenido y las fuentes; añade una fotografía antes de publicar.';
       document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
       status.textContent = 'No se ha guardado ningún borrador: ' + error.message;
@@ -92,28 +91,43 @@
   }
   async function loadRadar() {
     searchButton.disabled = true;
-    status.textContent = 'Consultando titulares recientes…';
+    status.textContent = 'Buscando 10 noticias recientes por cada una de las 5 secciones…';
     results.replaceChildren();
     try {
-      const feed = 'https://news.google.com/rss/search?q=(f%C3%BAtbol%20OR%20fichajes%20OR%20LaLiga%20OR%20Champions%20League%20OR%20Premier%20League)%20when:1d&hl=es&gl=ES&ceid=ES:es';
-      const endpoint = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed);
-      const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
-      if (!response.ok) throw new Error('El servicio de titulares respondió con HTTP ' + response.status);
-      const data = await response.json();
-      if (data.status !== 'ok' || !Array.isArray(data.items)) throw new Error(data.message || 'El proveedor no devolvió titulares.');
-      const { data: existing, error } = await db.from('articles').select('title').limit(500);
+      const { data: existing, error } = await db.from('articles').select('title').limit(1000);
       if (error) throw new Error('No se pudo comprobar si ya existen noticias: ' + error.message);
       const known = new Set((existing || []).map(a => normalize(a.title)));
+      const seen = new Set(known);
       const cutoff = Date.now() - 36 * 60 * 60 * 1000;
-      items = data.items.map(item => {
-        const title = cleanText(item.title);
-        const description = cleanText(item.description || item.content);
-        return { title, excerpt: description, link: item.link, date: item.pubDate, source: item.author || item.enclosure?.type || 'Google Noticias', category: categoryFor(title) };
-      }).filter(item => item.title && item.link && /^https?:\/\//i.test(item.link) && (!item.date || new Date(item.date).getTime() >= cutoff) && !known.has(normalize(item.title))).slice(0, 35);
+      const batches = await Promise.all(categories.map(async category => {
+        const feed = 'https://news.google.com/rss/search?q=' + encodeURIComponent(category.query) + '&hl=es&gl=ES&ceid=ES:es';
+        const endpoint = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed);
+        const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) throw new Error('El servicio de noticias respondió con HTTP ' + response.status + ' en ' + category.name);
+        const data = await response.json();
+        if (data.status !== 'ok' || !Array.isArray(data.items)) throw new Error(data.message || 'No se pudieron obtener titulares de ' + category.name);
+        const selected = [];
+        for (const raw of data.items) {
+          const title = cleanText(raw.title);
+          const key = normalize(title);
+          const date = raw.pubDate ? new Date(raw.pubDate) : null;
+          if (!title || !raw.link || !/^https?:\\/\\//i.test(raw.link) || (date && (!Number.isFinite(date.getTime()) || date.getTime() < cutoff)) || seen.has(key)) continue;
+          seen.add(key);
+          selected.push({
+            title, excerpt: cleanText(raw.description || raw.content), link: raw.link,
+            date: raw.pubDate, source: raw.author || 'Google Noticias', category: category.name
+          });
+          if (selected.length === 10) break;
+        }
+        return selected;
+      }));
+      items = batches.flat();
       render();
-      status.textContent = items.length ? 'Encontrados ' + items.length + ' titulares recientes que no coinciden exactamente con los títulos ya guardados. Son pistas, no noticias verificadas.' : 'No hay titulares nuevos en el feed. Prueba más tarde o consulta directamente las fuentes.';
+      const counts = categories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
+      status.textContent = 'Propuestas encontradas: ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
+      if (items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
     } catch (error) {
-      status.textContent = 'No se pudo consultar el radar: ' + error.message + '. Puedes seguir creando noticias manualmente desde el editor.';
+      status.textContent = 'No se pudo completar la búsqueda: ' + error.message + '. Vuelve a intentarlo más tarde.';
     } finally { searchButton.disabled = false; }
   }
   searchButton.addEventListener('click', loadRadar);
