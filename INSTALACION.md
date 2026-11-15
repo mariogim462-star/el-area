@@ -57,3 +57,19 @@ El botón **Generar noticia con IA y guardar borrador** utiliza una función de 
 La función comprueba la sesión y el rol `admin` en Supabase antes de usar la API. La clave de OpenAI permanece en el servidor. La IA busca y contrasta fuentes web y devuelve un texto original con enlaces de consulta y la firma `— EL ÁREA`. El panel lo guarda con estado **Borrador**, sin programarlo ni publicarlo. Los borradores pueden guardarse sin fotografía; añade una imagen autorizada antes de publicar.
 
 **Importante:** la generación consume la cuota/crédito de tu cuenta de API de OpenAI. Una suscripción de ChatGPT no incluye automáticamente crédito de API. Si el proyecto está desplegado como un Worker estático y no como Pages, habrá que adaptar/desplegar esta ruta en ese Worker; no basta con subir el archivo.
+
+
+## 5. SEO, Google y difusión
+Las mejoras SEO están incluidas en el código:
+- La portada dispone de título, descripción, URL canónica, metadatos Open Graph/Twitter y datos estructurados del medio.
+- Las páginas de noticia generan metadatos sociales y marcado `NewsArticle` con su titular, entradilla, fecha e imagen.
+- `robots.txt` indica a los buscadores dónde encontrar el sitemap.
+- `/sitemap.xml` se genera con las noticias publicadas y visibles en Supabase. Esta ruta utiliza Cloudflare Pages Functions y las variables `SUPABASE_URL` y `SUPABASE_ANON_KEY` del entorno de producción.
+
+**Para terminar la configuración en Google:**
+1. Abre Google Search Console y añade la propiedad del dominio o la URL exacta de EL ÁREA.
+2. Completa la verificación de propiedad siguiendo el método que te ofrezca Google.
+3. En **Sitemaps**, envía `sitemap.xml`.
+4. Revisa periódicamente las páginas indexadas, errores y consultas de búsqueda.
+
+No se ha conectado ninguna cuenta de analítica ni se han añadido píxeles publicitarios adicionales. Antes de incorporar medición o publicidad nueva, configura una plataforma de consentimiento válida para los visitantes del Espacio Económico Europeo. Para redes sociales, crea los perfiles oficiales y comparte enlaces a las noticias; no se han inventado ni enlazado perfiles que todavía no existen.
