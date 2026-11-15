@@ -39,3 +39,21 @@ Este repositorio es estático: no necesita un proceso de compilación.
 
 ## Estado
 El código y el esquema ya están en GitHub. Para dejar el sistema operativo faltan la creación/ conexión del proyecto Supabase y el despliegue de Cloudflare Pages, que requieren autorización en esas cuentas.
+
+## 4. Activar la redacción asistida por IA (Cloudflare Pages Functions)
+
+El botón **Generar noticia con IA y guardar borrador** utiliza una función de servidor en `functions/api/generate-news.js`. Para que funcione, el proyecto debe desplegarse como Cloudflare Pages con soporte para Pages Functions.
+
+1. Entra en Cloudflare > **Workers & Pages** y abre el proyecto que sirve EL ÁREA.
+2. Ve a **Settings > Variables and Secrets** (o **Environment variables**).
+3. Añade estas variables para el entorno **Production**:
+   - `OPENAI_API_KEY`: crea un secreto con tu clave de API de OpenAI. No la pongas en GitHub ni en `supabase-config.js`.
+   - `SUPABASE_URL`: `https://nddxgtppeqkhtjldwszq.supabase.co` (o la URL de tu proyecto).
+   - `SUPABASE_ANON_KEY`: la clave pública/publishable del mismo proyecto Supabase.
+   - `OPENAI_MODEL` (opcional): modelo disponible en tu cuenta; si no se define, el endpoint usa `gpt-6-astra`.
+4. Guarda las variables y vuelve a desplegar la última versión desde **Deployments** si Cloudflare no inicia el despliegue automáticamente.
+5. Entra en `/admin.html`, inicia sesión y abre el radar. Pulsa **Generar noticia con IA y guardar borrador** en una noticia.
+
+La función comprueba la sesión y el rol `admin` en Supabase antes de usar la API. La clave de OpenAI permanece en el servidor. La IA busca y contrasta fuentes web y devuelve un texto original con enlaces de consulta y la firma `— EL ÁREA`. El panel lo guarda con estado **Borrador**, sin programarlo ni publicarlo. Los borradores pueden guardarse sin fotografía; añade una imagen autorizada antes de publicar.
+
+**Importante:** la generación consume la cuota/crédito de tu cuenta de API de OpenAI. Una suscripción de ChatGPT no incluye automáticamente crédito de API. Si el proyecto está desplegado como un Worker estático y no como Pages, habrá que adaptar/desplegar esta ruta en ese Worker; no basta con subir el archivo.
