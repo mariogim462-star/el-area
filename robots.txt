@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://el-area.mariogim462.workers.dev/sitemap.xml
