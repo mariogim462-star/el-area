@@ -8,6 +8,19 @@
  if(error||!data){fail('No encontramos esa noticia o todavía no está publicada.');return;}
  try { const seenKey='el-area-vista-'+data.slug; if(!sessionStorage.getItem(seenKey)){ await db.rpc('register_article_view',{article_uuid:data.id}); sessionStorage.setItem(seenKey,'1'); } } catch(e) { console.debug('No se pudo registrar la lectura',e); }
  document.title=data.title+' · EL ÁREA';
+ const canonicalUrl=location.origin+location.pathname+'?slug='+encodeURIComponent(data.slug);
+ const setMeta=(selector,attr,value)=>{let el=document.head.querySelector(selector);if(!el){el=document.createElement('meta');if(selector.startsWith('meta[property='))el.setAttribute('property',selector.match(/"([^"]+)"/)[1]);else el.setAttribute('name',selector.match(/"([^"]+)"/)[1]);document.head.appendChild(el);}el.setAttribute(attr,value);};
+ setMeta('meta[name="description"]','content',(data.excerpt||data.title).slice(0,155));
+ setMeta('meta[property="og:title"]','content',data.title+' · EL ÁREA');
+ setMeta('meta[property="og:description"]','content',(data.excerpt||data.title).slice(0,200));
+ setMeta('meta[property="og:url"]','content',canonicalUrl);
+ setMeta('meta[name="twitter:title"]','content',data.title+' · EL ÁREA');
+ setMeta('meta[name="twitter:description"]','content',(data.excerpt||data.title).slice(0,200));
+ if(data.image_url){setMeta('meta[property="og:image"]','content',data.image_url);setMeta('meta[name="twitter:image"]','content',data.image_url);}
+ let canonical=document.querySelector('link[rel="canonical"]');if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}canonical.href=canonicalUrl;
+ const articleLd={"@context":"https://schema.org","@type":"NewsArticle","headline":data.title,"description":data.excerpt||data.title,"datePublished":data.published_at,"dateModified":data.published_at,"author":{"@type":"Organization","name":"EL ÁREA","url":location.origin},"publisher":{"@type":"Organization","name":"EL ÁREA","url":location.origin},"mainEntityOfPage":canonicalUrl,"inLanguage":"es"};
+ if(data.image_url)articleLd.image=[data.image_url];
+ const ld=document.createElement('script');ld.type='application/ld+json';ld.textContent=JSON.stringify(articleLd);document.head.appendChild(ld);
  root.replaceChildren();
  const cat=document.createElement('div');cat.className='category';cat.textContent=data.category||'Fútbol';
  const h=document.createElement('h1');h.textContent=data.title;
