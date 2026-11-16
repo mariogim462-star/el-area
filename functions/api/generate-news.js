@@ -1,6 +1,8 @@
 // Cloudflare Pages Function: POST /api/generate-news
 // Las cuatro claves GROQ_API_KEY_* se reciben desde el Worker principal; Supabase autentica al redactor.
 // The caller must be an authenticated EL ÁREA admin. No article is published here.
+const SUPABASE_URL = "https://nddxgtppeqkhtjldwszq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_dEkwD_UA7eW7wqTcsvmOkg_lq7yu0ST";
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" }
@@ -14,19 +16,19 @@ export async function onRequestPost({ request, env }) {
       request.headers.get("x-el-area-groq-key-3") || env.GROQ_API_KEY_3,
       request.headers.get("x-el-area-groq-key-4") || env.GROQ_API_KEY_4
     ].map(key => String(key || "").trim()).filter(Boolean);
-    if (!groqKeys.length || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+    if (!groqKeys.length) {
       return json({ error: "Faltan las claves GROQ_API_KEY_1–4 en el Worker principal o la conexión de Supabase." }, 503);
     }
     const authorization = request.headers.get("Authorization") || "";
     if (!authorization.startsWith("Bearer ")) return json({ error: "Inicia sesión como administrador." }, 401);
     const token = authorization.slice(7);
-    const userResponse = await fetch(env.SUPABASE_URL.replace(/\/$/, "") + "/auth/v1/user", {
-      headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + token }
+    const userResponse = await fetch(SUPABASE_URL + "/auth/v1/user", {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + token }
     });
     if (!userResponse.ok) return json({ error: "La sesión no es válida. Vuelve a iniciar sesión." }, 401);
     const user = await userResponse.json();
-    const roleResponse = await fetch(env.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/user_roles?user_id=eq." + encodeURIComponent(user.id) + "&select=role", {
-      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + token }
+    const roleResponse = await fetch(SUPABASE_URL + "/rest/v1/user_roles?user_id=eq." + encodeURIComponent(user.id) + "&select=role", {
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + token }
     });
     if (!roleResponse.ok) return json({ error: "No se pudieron comprobar los permisos de redacción." }, 403);
     const roles = await roleResponse.json();
