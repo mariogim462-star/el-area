@@ -15,13 +15,16 @@ export default {
     headers.delete("x-el-area-stripe-secret");
     headers.delete("x-el-area-stripe-webhook-secret");
     headers.delete("x-el-area-supabase-service-key");
-    headers.delete("x-el-area-openai-key");
+    for (let i = 1; i <= 4; i++) headers.delete("x-el-area-groq-key-" + i);
 
     if (incoming.pathname.startsWith("/api/")) {
       if (env.STRIPE_SECRET_KEY) headers.set("x-el-area-stripe-secret", env.STRIPE_SECRET_KEY);
       if (env.STRIPE_WEBHOOK_SECRET) headers.set("x-el-area-stripe-webhook-secret", env.STRIPE_WEBHOOK_SECRET);
       if (env.SUPABASE_SERVICE_ROLE_KEY) headers.set("x-el-area-supabase-service-key", env.SUPABASE_SERVICE_ROLE_KEY);
-      if (env.OPENAI_API_KEY) headers.set("x-el-area-openai-key", env.OPENAI_API_KEY);
+      if (env.GROQ_API_KEY_1) headers.set("x-el-area-groq-key-1", env.GROQ_API_KEY_1);
+      if (env.GROQ_API_KEY_2) headers.set("x-el-area-groq-key-2", env.GROQ_API_KEY_2);
+      if (env.GROQ_API_KEY_3) headers.set("x-el-area-groq-key-3", env.GROQ_API_KEY_3);
+      if (env.GROQ_API_KEY_4) headers.set("x-el-area-groq-key-4", env.GROQ_API_KEY_4);
     }
 
     const forwarded = new Request(upstream.toString(), {
