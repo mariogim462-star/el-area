@@ -112,12 +112,10 @@
       const endDate = nextDate.toISOString().slice(0, 10);
       const batches = await Promise.all(categories.map(async category => {
         const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
-        const feed = 'https://news.google.com/rss/search?q=' + encodeURIComponent(datedQuery) + '&hl=es&gl=ES&ceid=ES:es';
-        const endpoint = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feed);
-        const response = await fetch(endpoint, { headers: { 'Accept': 'application/json' } });
+        const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), { headers: { 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('El servicio de noticias respondió con HTTP ' + response.status + ' en ' + category.name);
         const data = await response.json();
-        if (data.status !== 'ok' || !Array.isArray(data.items)) throw new Error(data.message || 'No se pudieron obtener titulares de ' + category.name);
+        if (!Array.isArray(data.items)) throw new Error(data.error || 'No se pudieron obtener titulares de ' + category.name);
         const selected = [];
         for (const raw of data.items) {
           const title = cleanText(raw.title);
