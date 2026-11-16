@@ -13,7 +13,7 @@ export async function onRequestPost({request,env}){
   const ur=await fetch(SUPABASE_URL+"/auth/v1/user",{headers:{apikey:SUPABASE_PUBLIC_KEY,Authorization:auth}});
   if(!ur.ok)return json({error:"Tu sesión ha caducado. Inicia sesión de nuevo."},401);
   const user=await ur.json();
-  const form=new URLSearchParams({mode:"subscription","line_items[0][price]":PRICE_ID,"line_items[0][quantity]":"1",success_url:SITE_URL+"/cuenta.html?checkout=success",cancel_url:SITE_URL+"/cuenta.html?checkout=cancel",client_reference_id:user.id,"metadata[user_id]":user.id,"subscription_data[metadata][user_id]":user.id});
+  const form=new URLSearchParams({mode:"subscription","line_items[0][price]":PRICE_ID,"line_items[0][quantity]":"1","managed_payments[enabled]":"false",success_url:SITE_URL+"/cuenta.html?checkout=success",cancel_url:SITE_URL+"/cuenta.html?checkout=cancel",client_reference_id:user.id,"metadata[user_id]":user.id,"subscription_data[metadata][user_id]":user.id});
   if(user.email)form.set("customer_email",user.email);
   const r=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+stripeKey,"Content-Type":"application/x-www-form-urlencoded"},body:form});
   const data=await r.json();if(!r.ok)return json({error:data.error?.message||"Stripe no pudo crear el pago."},502);
