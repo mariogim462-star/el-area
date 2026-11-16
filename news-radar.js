@@ -111,13 +111,15 @@
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const endDate = nextDate.toISOString().slice(0, 10);
       const sectionErrors = [];
-      const batches = await Promise.all(categories.map(async category => {
+      const batches = [];
+      for (const category of categories) {
+        const batch = await (async () => {
         try {
         const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
         const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), { headers: { 'Accept': 'application/json' } });
         const data = await response.json();
-        if (!response.ok) throw new Error((data.error || 'El servicio de noticias respondió con HTTP ' + response.status) + ' en ' + category.name);
         if (!Array.isArray(data.items)) throw new Error(data.error || 'No se pudieron obtener titulares de ' + category.name);
+        if (data.warning) sectionErrors.push(category.name + ': ' + data.warning);
         const selected = [];
         for (const raw of data.items) {
           const title = cleanText(raw.title);
@@ -137,7 +139,9 @@
           sectionErrors.push(category.name + ": " + sectionError.message);
           return [];
         }
-      }));
+        })();
+        batches.push(batch);
+      }
       items = batches.flat();
       render();
       const counts = categories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
