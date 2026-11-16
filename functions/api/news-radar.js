@@ -13,7 +13,7 @@ const parseRss = xml => {
   return entries.slice(0, 40).map(match => {
     const body = match[1];
     const get = tag => {
-      const found = body.match(new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/" + tag + ">", "i"));
+      const found = body.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
       return found ? decode(stripCdata(found[1]).replace(/<[^>]*>/g, "").trim()) : "";
     };
     let link = get("link");
