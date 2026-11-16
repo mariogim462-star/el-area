@@ -47,6 +47,8 @@
       const heading = el('strong', '', item.title);
       const meta = el('p', 'muted', item.category + ' · ' + (item.source || 'Google Noticias') + ' · ' + (item.date ? new Date(item.date).toLocaleString('es-ES') : 'Fecha no disponible'));
       const excerpt = el('p', '', item.excerpt || 'La fuente no ofrece entradilla. Abre el enlace y comprueba la información original.');
+      if (item.isExisting) { const repeated = el('p','muted','Esta noticia parece estar ya en tu archivo; comprueba antes de guardarla de nuevo.'); card.append(repeated); }
+      if (item.dateMatches === false) { const dateNote = el('p','muted','La fuente no confirma que se publicara exactamente el día seleccionado. Verifica la fecha antes de redactar.'); card.append(dateNote); }
       const source = el('a', 'muted', 'Abrir fuente original ↗');
       source.href = item.link; source.target = '_blank'; source.rel = 'noopener noreferrer';
       const actions = el('div', 'actions');
@@ -114,7 +116,7 @@
       const { data: existing, error } = await db.from('articles').select('title').limit(1000);
       if (error) throw new Error('No se pudo comprobar si ya existen noticias: ' + error.message);
       const known = new Set((existing || []).map(a => normalize(a.title)));
-      const seen = new Set(known);
+      const seen = new Set();
       const nextDate = new Date(selectedDate + 'T00:00:00Z');
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const endDate = nextDate.toISOString().slice(0, 10);
@@ -136,7 +138,8 @@
             link: raw.link,
             date: raw.pubDate,
             source: raw.author || 'Google Noticias',
-            category: category.name
+            category: category.name,
+            isExisting: known.has(normalize(cleanText(raw.title)))
           }));
         } catch (sectionError) {
           sectionErrors.push(category.name + ': ' + sectionError.message);
@@ -151,14 +154,16 @@
           const itemDay = date && Number.isFinite(date.getTime())
             ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
             : '';
-          if (!item.title || !item.link || !/^https?:\/\//i.test(item.link) || itemDay !== selectedDate || seen.has(key)) continue;
+          if (!item.title || !item.link || !/^https?:\/\//i.test(item.link) || seen.has(key)) continue;
           seen.add(key);
+          item.dateMatches = itemDay === selectedDate;
           if (items.filter(existingItem => existingItem.category === item.category).length < 10) items.push(item);
         }
       }
       render();
       const counts = searchCategories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
-      status.textContent = customQuery ? 'Resultados para «' + customQuery + '» el ' + selectedDate + ': ' + items.length + '. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo.' : 'Propuestas encontradas para ' + selectedDate + ': ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
+      const exactDateCount = items.filter(item => item.dateMatches).length;
+      status.textContent = customQuery ? 'Resultados relacionados con «' + customQuery + '»: ' + items.length + '. ' + exactDateCount + ' con fecha confirmada para ' + selectedDate + '. ' + counts + '. Las noticias ya existentes se marcan, no se ocultan.' : 'Propuestas encontradas: ' + items.length + '. ' + exactDateCount + ' con fecha confirmada para ' + selectedDate + '. ' + counts + '. Las noticias ya existentes se marcan, no se ocultan.';
       if (sectionErrors.length) status.textContent += ' Secciones con error: ' + sectionErrors.join(' | ') + '.';
       if (items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
     } catch (error) {
