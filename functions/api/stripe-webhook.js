@@ -13,7 +13,7 @@ async function validSignature(payload,header,secret){
 }
 async function saveSubscription(env,userId,customerId,subscription,service){
  const body={user_id:userId,stripe_customer_id:customerId,stripe_subscription_id:subscription.id,status:subscription.status,current_period_end:subscription.current_period_end?new Date(subscription.current_period_end*1000).toISOString():null,updated_at:new Date().toISOString()};
- const r=await fetch(env.SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/subscriptions?on_conflict=user_id",{method:"POST",headers:{apikey:service,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify(body)});
+ const r=await fetch("https://nddxgtppeqkhtjldwszq.supabase.co"+"/rest/v1/subscriptions?on_conflict=user_id",{method:"POST",headers:{apikey:service,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify(body)});
  if(!r.ok)throw new Error("No se pudo actualizar la suscripción en Supabase.");
 }
 export async function onRequestPost({request,env}){
@@ -32,7 +32,7 @@ export async function onRequestPost({request,env}){
   }else if(event.type==="customer.subscription.updated"||event.type==="customer.subscription.deleted"){
    sub=event.data.object;customerId=typeof sub.customer==="string"?sub.customer:sub.customer?.id;userId=sub.metadata?.user_id;
    if(!userId&&customerId){
-    const r=await fetch(env.SUPABASE_URL.replace(/\/$/,"")+"/rest/v1/subscriptions?stripe_customer_id=eq."+encodeURIComponent(customerId)+"&select=user_id",{headers:{apikey:service}});
+    const r=await fetch("https://nddxgtppeqkhtjldwszq.supabase.co"+"/rest/v1/subscriptions?stripe_customer_id=eq."+encodeURIComponent(customerId)+"&select=user_id",{headers:{apikey:service}});
     const rows=await r.json();userId=rows?.[0]?.user_id;
    }
    if(!userId||!customerId)return json({received:true});
