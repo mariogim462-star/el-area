@@ -58,7 +58,7 @@
 .share-strip button{border:0;background:var(--red);color:#fff;padding:12px 17px;font-size:11px;font-weight:900;text-transform:uppercase;cursor:pointer;white-space:nowrap}
 .share-strip button:hover{background:#171717}
 @media(max-width:620px){.share-strip{display:grid;padding:15px}.share-strip button{width:100%}}
-.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:28px}.block-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:9px;margin-bottom:16px}.block-head a{font-size:10px;color:var(--red);font-weight:900;text-transform:uppercase}.filters{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 18px}.filter{border:0;background:#eee;padding:9px 12px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.filter.active,.filter:hover{background:var(--red);color:white}
+.main-layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:28px}.block-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #222;padding-bottom:9px;margin-bottom:16px}.block-head a{font-size:10px;color:var(--red);font-weight:900;text-transform:uppercase}.site-search{margin:0 0 16px;padding:14px;background:#f5f5f5;border-left:3px solid var(--red)}.site-search label{display:block;font-size:11px;font-weight:900;text-transform:uppercase;margin-bottom:8px}.site-search-row{display:flex;gap:8px}.site-search input{flex:1;min-width:0;border:1px solid #ccc;background:#fff;padding:12px;font:inherit;font-size:14px}.site-search button{border:0;background:var(--red);color:#fff;padding:0 16px;font-size:11px;font-weight:900;text-transform:uppercase;cursor:pointer}.site-search button.search-clear{background:#222}.site-search p{font-size:11px;color:#666;margin:8px 0 0}@media(max-width:480px){.site-search-row{flex-wrap:wrap}.site-search input{flex-basis:100%;height:42px}.site-search button{height:40px;flex:1}}.filters{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 18px}.filter{border:0;background:#eee;padding:9px 12px;font-size:10px;font-weight:900;text-transform:uppercase;cursor:pointer}.filter.active,.filter:hover{background:var(--red);color:white}
 .story-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 16px}.story-card{min-width:0;border-bottom:1px solid var(--line);padding-bottom:14px}.story-open{display:block;width:100%;height:100%;padding:0;text-align:left;background:none;border:0;cursor:pointer;color:inherit}.story-image{height:155px;overflow:hidden;background:linear-gradient(135deg,#d8d8d8,#999);position:relative}.story-image img{width:100%;height:100%;object-fit:cover;transition:transform .25s}.story-open:hover img{transform:scale(1.035)}.story-copy{padding-top:10px}.story-copy h3{font:900 21px/1.05 Impact,'Arial Narrow',sans-serif;margin:6px 0}.story-copy p{font-size:12px;line-height:1.5;color:#666;margin:0 0 9px}.story-meta{font-size:9px;color:#999;text-transform:uppercase;font-weight:700}
 .sidebar-block{border-top:4px solid #222;margin-bottom:24px}.sidebar-block h2{font:900 22px Impact,'Arial Narrow',sans-serif;text-transform:uppercase;margin:10px 0;border-bottom:1px solid var(--line);padding-bottom:9px}.side-row{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.num{font:900 24px Impact,sans-serif;color:var(--red)}.side-row h3{font:800 16px/1.08 Impact,'Arial Narrow',sans-serif;margin:2px 0}.side-row small{font-size:9px;color:#999;text-transform:uppercase}.social-links{display:grid;gap:9px}.social-links a{background:#f3f3f3;padding:11px 12px;font-size:12px;font-weight:800}.social-links a:hover{background:#222;color:#fff}.ad-box{min-height:150px;background:#f5f5f5;display:grid;place-items:center;color:#999;font-size:10px;letter-spacing:2px;text-align:center;padding:20px}
 .feature-band{margin:40px 0;background:#171717;color:white;padding:23px}.feature-band .block-head{border-color:#555}.feature-band .block-head h2{color:#fff}.feature-band .story-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.feature-band .story-card{border-color:#555}.feature-band .story-copy h3{color:#fff}.feature-band .story-copy p{color:#bbb}
@@ -153,6 +153,11 @@ footer{margin-top:45px;background:#171717;color:#aaa;padding:27px 0;font-size:11
  </section>
  <section class="main-layout" id="noticias">
   <div><div class="block-head"><h2>Noticias y reportajes</h2><a href="#noticias">EL ÁREA · ESPECIAL FÚTBOL</a></div>
+   <form id="siteSearchForm" class="site-search" role="search">
+    <label for="siteSearch">Buscar noticias, equipos o jugadores</label>
+    <div class="site-search-row"><input id="siteSearch" type="search" placeholder="Ej.: Real Madrid, Lamine Yamal, fichajes…" autocomplete="off"><button type="submit">Buscar</button><button type="button" id="clearSiteSearch" class="search-clear">Limpiar</button></div>
+    <p id="siteSearchStatus" aria-live="polite">Busca en los titulares y entradillas de EL ÁREA.</p>
+   </form>
    <div class="filters" aria-label="Filtrar noticias">
     <button class="filter active" data-filter="todos">Todo</button><button class="filter" data-filter="Selección española">España</button><button class="filter" data-filter="Barça / Selección">Barça</button><button class="filter" data-filter="Champions League">Champions</button><button class="filter" data-filter="Internacional">Internacional</button><button class="filter" data-filter="Táctica">Táctica</button><button class="filter" data-filter="Historias">Historias</button><button class="filter" data-filter="Curiosidades">Curiosidades</button>
    </div>
@@ -431,17 +436,45 @@ document.getElementById('articleClose').addEventListener('click', closeArticle);
 modal.addEventListener('click', event => { if (event.target === modal) closeArticle(); });
 document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeArticle(); closePolicy(); } });
 
+// Búsqueda de noticias en titulares y entradillas.
+const siteSearchForm = document.getElementById('siteSearchForm');
+const siteSearchInput = document.getElementById('siteSearch');
+const siteSearchStatus = document.getElementById('siteSearchStatus');
+const clearSiteSearch = document.getElementById('clearSiteSearch');
+const normalizeSearch = value => String(value || '').toLocaleLowerCase('es').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+function runSiteSearch() {
+ const query = normalizeSearch(siteSearchInput.value).trim();
+ let matches = 0;
+ storyCards.forEach(card => {
+   const text = normalizeSearch(card.innerText);
+   const categoryActive = activeCategory === 'todos' || card.dataset.cat === activeCategory;
+   const match = !query || text.includes(query);
+   card.hidden = !(categoryActive && match);
+   if (categoryActive && match) matches++;
+ });
+ document.getElementById('emptyState').hidden = matches !== 0;
+ siteSearchStatus.textContent = query ? (matches ? 'Resultados: ' + matches + ' noticia(s).' : 'No encontramos noticias con «' + siteSearchInput.value.trim() + '». Prueba otro término.') : 'Mostrando todas las noticias.';
+}
+let activeCategory = 'todos';
+siteSearchForm.addEventListener('submit', event => { event.preventDefault(); runSiteSearch(); document.getElementById('noticias').scrollIntoView({behavior:'smooth'}); });
+siteSearchInput.addEventListener('input', runSiteSearch);
+clearSiteSearch.addEventListener('click', () => { siteSearchInput.value = ''; activeCategory = 'todos'; filters.forEach(item => item.classList.toggle('active', item.dataset.filter === 'todos')); runSiteSearch(); siteSearchInput.focus(); });
+
 // Filtro accesible por categoría
 const filters = [...document.querySelectorAll('.filter')];
 const storyCards = [...document.querySelectorAll('#storyGrid .story-card')];
 filters.forEach(button => button.addEventListener('click', () => {
  filters.forEach(item => item.classList.toggle('active', item === button));
+ activeCategory = button.dataset.filter;
  let visible = 0;
  storyCards.forEach(card => {
-   const show = button.dataset.filter === 'todos' || card.dataset.cat === button.dataset.filter;
+   const query = normalizeSearch(siteSearchInput.value).trim();
+   const categoryMatch = button.dataset.filter === 'todos' || card.dataset.cat === button.dataset.filter;
+   const show = categoryMatch && (!query || normalizeSearch(card.innerText).includes(query));
    card.hidden = !show; if (show) visible++;
  });
  document.getElementById('emptyState').hidden = visible !== 0;
+ siteSearchStatus.textContent = siteSearchInput.value.trim() ? 'Resultados: ' + visible + ' noticia(s) en esta sección.' : 'Filtro: ' + (button.dataset.filter === 'todos' ? 'todas las secciones' : button.dataset.filter) + '.';
 }));
 
 // Imágenes: carga diferida y alternativa integrada si un proveedor falla.
