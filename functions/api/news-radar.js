@@ -63,9 +63,9 @@ export async function onRequestGet({ request }) {
       else {
         const items = payload.articles.map(article => {
           const rawDate = String(article.seendate || "");
-          const isoDate = rawDate.replace(/^(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
+          const isoDate = rawDate.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
           return { title: article.title || "", link: article.url || article.url_mobile || "", pubDate: isoDate || rawDate, author: article.domain || article.sourcecountry || "GDELT", description: "", content: "" };
-        }).filter(item => item.title && /^https?:\\/\\//i.test(item.link));
+        }).filter(item => item.title && /^https?:\/\//i.test(item.link));
         if (items.length) {
           const result = json({ items, provider: "GDELT", warning: null });
           try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
