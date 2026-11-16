@@ -151,7 +151,7 @@
           const itemDay = date && Number.isFinite(date.getTime())
             ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
             : '';
-          if (!item.title || !item.link || !/^https?:\\/\\//i.test(item.link) || itemDay !== selectedDate || seen.has(key)) continue;
+          if (!item.title || !item.link || !/^https?:\/\//i.test(item.link) || itemDay !== selectedDate || seen.has(key)) continue;
           seen.add(key);
           if (items.filter(existingItem => existingItem.category === item.category).length < 10) items.push(item);
         }
