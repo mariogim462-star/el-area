@@ -29,44 +29,71 @@ const parseRss = xml => {
 
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
-  const query = (url.searchParams.get("q") || "").trim().slice(0, 500);
-  if (!query) return json({ error: "Falta el término de búsqueda.", items: [] }, 400);
-  const cacheKey = new Request("https://el-area-cache.invalid/news-radar?q=" + encodeURIComponent(query));
-  try {
-    const cached = await caches.default.match(cacheKey);
-    if (cached) return cached;
-  } catch (_) {}
-  const google = new URL("https://news.google.com/rss/search");
-  google.searchParams.set("q", query);
-  google.searchParams.set("hl", "es");
-  google.searchParams.set("gl", "ES");
-  google.searchParams.set("ceid", "ES:es");
-  const bing = new URL("https://www.bing.com/news/search");
-  bing.searchParams.set("q", query);
-  bing.searchParams.set("format", "rss");
-  bing.searchParams.set("setlang", "es-es");
-  const feeds = [
-    { name: "Google Noticias", url: google.toString() },
-    { name: "Bing Noticias", url: bing.toString() }
-  ];
+  const originalQuery = (url.searchParams.get("q") || "").trim().slice(0, 500);
+  if (!originalQuery) return json({ error: "Falta el término de búsqueda.", items: [] }, 400);
+  const dateMatch = originalQuery.match(/after:(\\d{4}-\\d{2}-\\d{2})/);
+  const selectedDate = dateMatch?.[1] || "";
+  const query = originalQuery.replace(/\\s+(?:after|before):\\d{4}-\\d{2}-\\d{2}/g, "").trim();
+  const cacheKey = new Request("https://el-area-cache.invalid/news-radar?q=" + encodeURIComponent(originalQuery));
+  try { const cached = await caches.default.match(cacheKey); if (cached) return cached; } catch (_) {}
+
   const failures = [];
-  for (const feed of feeds) {
+  // GDELT DOC API: búsqueda de artículos recientes, sin API key.
+  try {
+    const gdelt = new URL("https://api.gdeltproject.org/api/v2/doc/doc");
+    gdelt.searchParams.set("query", query + " sourcelang:Spanish");
+    gdelt.searchParams.set("mode", "ArtList");
+    gdelt.searchParams.set("format", "json");
+    gdelt.searchParams.set("maxrecords", "75");
+    gdelt.searchParams.set("sort", "DateDesc");
+    if (selectedDate) {
+      const day = new Date(selectedDate + "T00:00:00Z");
+      const from = new Date(day.getTime() - 86400000);
+      const to = new Date(day.getTime() + 172800000 - 1000);
+      const stamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\\.\\d{3}Z$/, "Z");
+      gdelt.searchParams.set("startdatetime", stamp(from));
+      gdelt.searchParams.set("enddatetime", stamp(to));
+    } else gdelt.searchParams.set("timespan", "24h");
+    const response = await fetch(gdelt.toString(), { headers: { "Accept": "application/json", "User-Agent": "ELAREA-NewsRadar/1.0" } });
+    if (!response.ok) failures.push("GDELT HTTP " + response.status);
+    else {
+      const type = response.headers.get("content-type") || "";
+      const payload = type.includes("json") ? await response.json() : null;
+      if (!payload || !Array.isArray(payload.articles)) failures.push("GDELT no devolvió una lista de artículos");
+      else {
+        const items = payload.articles.map(article => {
+          const rawDate = String(article.seendate || "");
+          const isoDate = rawDate.replace(/^(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})(\\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
+          return { title: article.title || "", link: article.url || article.url_mobile || "", pubDate: isoDate || rawDate, author: article.domain || article.sourcecountry || "GDELT", description: "", content: "" };
+        }).filter(item => item.title && /^https?:\\/\\//i.test(item.link));
+        if (items.length) {
+          const result = json({ items, provider: "GDELT", warning: null });
+          try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
+          return result;
+        }
+        failures.push("GDELT no encontró artículos para esta búsqueda");
+      }
+    }
+  } catch (error) { failures.push("GDELT: " + (error?.message || "fallo de conexión")); }
+
+  // Feeds alternativos por si GDELT está temporalmente limitado.
+  const google = new URL("https://news.google.com/rss/search");
+  google.searchParams.set("q", originalQuery); google.searchParams.set("hl", "es"); google.searchParams.set("gl", "ES"); google.searchParams.set("ceid", "ES:es");
+  const bing = new URL("https://www.bing.com/news/search");
+  bing.searchParams.set("q", originalQuery); bing.searchParams.set("format", "rss"); bing.searchParams.set("setlang", "es-es");
+  for (const feed of [{ name: "Google Noticias", url: google.toString() }, { name: "Bing Noticias", url: bing.toString() }]) {
     try {
-      const upstream = await fetch(feed.url, { headers: { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "User-Agent": "Mozilla/5.0 (compatible; ELAREA/1.0)" } });
-      if (!upstream.ok) { failures.push(feed.name + " HTTP " + upstream.status); continue; }
-      const xml = await upstream.text();
-      const items = parseRss(xml);
+      const response = await fetch(feed.url, { headers: { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "User-Agent": "Mozilla/5.0 (compatible; ELAREA/1.0)" } });
+      if (!response.ok) { failures.push(feed.name + " HTTP " + response.status); continue; }
+      const items = parseRss(await response.text());
       if (items.length) {
-        const response = json({ items, provider: feed.name, warning: null });
-        try { await caches.default.put(cacheKey, response.clone()); } catch (_) {}
-        return response;
+        const result = json({ items, provider: feed.name, warning: null });
+        try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
+        return result;
       }
       failures.push(feed.name + " devolvió un feed sin entradas reconocibles");
-    } catch (error) {
-      failures.push(feed.name + ": " + (error?.message || "fallo de conexión"));
-    }
+    } catch (error) { failures.push(feed.name + ": " + (error?.message || "fallo de conexión")); }
   }
-  // A failed provider must not break the whole five-section radar.
   return json({ items: [], provider: null, warning: failures.join(" | ") || "No hay resultados disponibles." });
 }
 export async function onRequest({ request }) {
