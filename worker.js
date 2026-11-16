@@ -15,11 +15,13 @@ export default {
     headers.delete("x-el-area-stripe-secret");
     headers.delete("x-el-area-stripe-webhook-secret");
     headers.delete("x-el-area-supabase-service-key");
+    headers.delete("x-el-area-openai-key");
 
     if (incoming.pathname.startsWith("/api/")) {
       if (env.STRIPE_SECRET_KEY) headers.set("x-el-area-stripe-secret", env.STRIPE_SECRET_KEY);
       if (env.STRIPE_WEBHOOK_SECRET) headers.set("x-el-area-stripe-webhook-secret", env.STRIPE_WEBHOOK_SECRET);
       if (env.SUPABASE_SERVICE_ROLE_KEY) headers.set("x-el-area-supabase-service-key", env.SUPABASE_SERVICE_ROLE_KEY);
+      if (env.OPENAI_API_KEY) headers.set("x-el-area-openai-key", env.OPENAI_API_KEY);
     }
 
     const forwarded = new Request(upstream.toString(), {
