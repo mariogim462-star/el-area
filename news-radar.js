@@ -7,6 +7,7 @@
   const searchButton = document.getElementById('radarSearch');
   const filter = document.getElementById('radarFilter');
   const dateInput = document.getElementById('radarDate');
+  const queryInput = document.getElementById('radarQuery');
   const todayMadrid = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   dateInput.max = todayMadrid();
   dateInput.value = todayMadrid();
@@ -104,7 +105,10 @@
       return;
     }
     searchButton.disabled = true;
-    status.textContent = 'Buscando noticias del ' + selectedDate + ' en las 5 secciones…';
+    const customQuery = queryInput.value.trim();
+    const searchCategories = customQuery ? [{ name: 'Búsqueda', query: customQuery }] : categories;
+    if (customQuery) filter.value = '';
+    status.textContent = customQuery ? 'Buscando noticias sobre «' + customQuery + '» del ' + selectedDate + '…' : 'Buscando noticias del ' + selectedDate + ' en las 5 secciones…';
     results.replaceChildren();
     try {
       const { data: existing, error } = await db.from('articles').select('title').limit(1000);
@@ -115,8 +119,8 @@
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const endDate = nextDate.toISOString().slice(0, 10);
       const sectionErrors = [];
-      status.textContent = 'Consultando las 5 secciones en paralelo…';
-      const batches = await Promise.all(categories.map(async category => {
+      status.textContent = customQuery ? 'Buscando titulares relacionados con «' + customQuery + '»…' : 'Consultando las 5 secciones en paralelo…';
+      const batches = await Promise.all(searchCategories.map(async category => {
         try {
           const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
           const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), {
@@ -153,8 +157,8 @@
         }
       }
       render();
-      const counts = categories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
-      status.textContent = 'Propuestas encontradas para ' + selectedDate + ': ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
+      const counts = searchCategories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
+      status.textContent = customQuery ? 'Resultados para «' + customQuery + '» el ' + selectedDate + ': ' + items.length + '. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo.' : 'Propuestas encontradas para ' + selectedDate + ': ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
       if (sectionErrors.length) status.textContent += ' Secciones con error: ' + sectionErrors.join(' | ') + '.';
       if (items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
     } catch (error) {
@@ -162,6 +166,7 @@
     } finally { searchButton.disabled = false; }
   }
   searchButton.addEventListener('click', loadRadar);
+  queryInput.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); loadRadar(); } });
   filter.addEventListener('change', render);
   const observer = new MutationObserver(() => {
     if (!editorPanel.classList.contains('hidden')) panel.classList.remove('hidden');
