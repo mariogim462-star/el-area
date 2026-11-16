@@ -74,15 +74,15 @@ export async function onRequestPost({ request, env }) {
       "Si no puedes abrir o verificar las fuentes, dilo en verification_notes y no rellenes huecos con suposiciones. No inventes fuentes ni enlaces. Usa solo URLs que hayas consultado.",
       "Redacta entre 350 y 500 palabras salvo que la información disponible no permita una noticia de esa extensión. Incluye titular, entradilla y cuerpo en campos separados. No añadas una firma en content; la aplicación añadirá «— EL ÁREA».",
       "En content usa párrafos separados por dos saltos de línea. No incluyas markdown ni enlaces inventados. Devuelve las fuentes consultadas por separado.",
-      "La respuesta es un BORRADOR para revisión humana, no una publicación definitiva."
+      "La respuesta es un BORRADOR para revisión humana, no una publicación definitiva.",
+      "Devuelve exclusivamente un objeto JSON válido con las propiedades title, excerpt, content, category, sources y verification_notes. No uses bloques markdown ni texto fuera del JSON."
     ].join("\n");
     const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
     const groqPayload = {
       model: env.GROQ_MODEL || "openai/gpt-oss-20b",
       input: [{ role: "developer", content: [{ type: "input_text", text: instructions }] }, { role: "user", content: [{ type: "input_text", text: userPrompt }] }],
       tool_choice: "required",
-      tools: [{ type: "browser_search" }],
-      text: { format: { type: "json_schema", name: "el_area_news_draft", strict: true, schema } }
+      tools: [{ type: "browser_search" }]
     };
     let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
     for (const key of groqKeys) {
