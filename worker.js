@@ -6,6 +6,14 @@ const PAGES_ORIGIN = "https://el-area.pages.dev";
 export default {
   async fetch(request, env) {
     const incoming = new URL(request.url);
+    if (incoming.pathname === "/__worker_config_check") {
+      const present = (v) => typeof v === "string" && v.length > 0;
+      return new Response(JSON.stringify({
+        stripeSecret: present(env.STRIPE_SECRET_KEY),
+        webhookSecret: present(env.STRIPE_WEBHOOK_SECRET),
+        serviceRole: present(env.SUPABASE_SERVICE_ROLE_KEY)
+      }), {headers: {"content-type": "application/json", "cache-control": "no-store"}});
+    }
     const upstream = new URL(PAGES_ORIGIN);
     upstream.pathname = incoming.pathname;
     upstream.search = incoming.search;
