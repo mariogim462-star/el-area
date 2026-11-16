@@ -7,9 +7,9 @@ const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(bod
 
 const decode = value => String(value || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 
-const stripCdata = value => String(value || "").replace(/^<!\\[CDATA\\[([\\s\\S]*)\\]\\]>$/, "$1");
+const stripCdata = value => String(value || "").replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, "$1");
 const parseRss = xml => {
-  const entries = [...String(xml || "").matchAll(/<(?:item|entry)(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:item|entry)>/gi)];
+  const entries = [...String(xml || "").matchAll(/<(?:item|entry)(?:\s[^>]*)?>([\s\S]*?)<\/(?:item|entry)>/gi)];
   return entries.slice(0, 40).map(match => {
     const body = match[1];
     const get = tag => {
@@ -24,7 +24,7 @@ const parseRss = xml => {
     const title = get("title");
     const description = get("description") || get("summary") || get("content");
     return { title, link, pubDate: get("pubDate") || get("published") || get("updated"), author: get("source") || get("creator") || get("name"), description, content: description };
-  }).filter(item => item.title && /^https?:\\/\\//i.test(item.link));
+  }).filter(item => item.title && /^https?:\/\//i.test(item.link));
 };
 
 export async function onRequestGet({ request }) {
