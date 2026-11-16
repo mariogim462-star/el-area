@@ -82,9 +82,13 @@
       document.getElementById('imageAlt').value = '';
       document.getElementById('articleId').value = '';
       document.getElementById('formTitle').textContent = 'Borrador generado por IA · pendiente de revisión';
-      document.getElementById('articleForm').requestSubmit();
-      status.textContent = 'Borrador guardado. Revisa el titular, el contenido y las fuentes; añade una fotografía antes de publicar.';
+      const verification = Array.isArray(data.verification_notes) && data.verification_notes.length
+        ? ' Avisos de verificación: ' + data.verification_notes.join(' · ')
+        : '';
+      const sourceCount = Array.isArray(data.sources) ? data.sources.length : 0;
+      status.textContent = 'Borrador generado y cargado en el editor; todavía NO se ha guardado ni publicado. Fuentes contrastadas: ' + sourceCount + '. Revísalo y pulsa «Guardar noticia» cuando esté listo.' + verification;
       document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('title').focus({ preventScroll: true });
     } catch (error) {
       status.textContent = 'No se ha guardado ningún borrador: ' + error.message;
     } finally {
