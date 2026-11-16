@@ -112,7 +112,9 @@
       const endDate = nextDate.toISOString().slice(0, 10);
       const sectionErrors = [];
       const batches = [];
-      for (const category of categories) {
+      for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex++) {
+        const category = categories[categoryIndex];
+        if (categoryIndex > 0) await new Promise(resolve => setTimeout(resolve, 5200));
         const batch = await (async () => {
         try {
         const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
