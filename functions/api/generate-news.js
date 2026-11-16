@@ -21,7 +21,7 @@ export async function onRequestPost({ request, env }) {
     if (!authorization.startsWith("Bearer ")) return json({ error: "Inicia sesión como administrador." }, 401);
     const token = authorization.slice(7);
     const userResponse = await fetch(env.SUPABASE_URL.replace(/\/$/, "") + "/auth/v1/user", {
-      headers: { apikey: env.SUPABASE_ANON_KEY, Authorization: "Bearer " + token }
+      headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + token }
     });
     if (!userResponse.ok) return json({ error: "La sesión no es válida. Vuelve a iniciar sesión." }, 401);
     const user = await userResponse.json();
