@@ -7,11 +7,11 @@ const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(bod
 
 const decode = value => String(value || "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&#x([\da-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)));
 
-const parseRss = xml => [...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi)].slice(0, 30).map(match => {
+const parseRss = xml => [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].slice(0, 30).map(match => {
   const itemXml = match[1];
   const get = tag => {
-    const found = itemXml.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
-    return found ? decode(found[1].replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/<[^>]*>/g, "").trim()) : "";
+    const found = itemXml.match(new RegExp("<" + tag + "(?:\s[^>]*)?>([\s\S]*?)<\/" + tag + ">", "i"));
+    return found ? decode(found[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]*>/g, "").trim()) : "";
   };
   return { title: get("title"), link: get("link"), pubDate: get("pubDate"), author: get("source") || get("creator"), description: get("description"), content: get("description") };
 }).filter(item => item.title && item.link);
