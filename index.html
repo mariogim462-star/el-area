@@ -474,11 +474,14 @@ let pendingPremium=false;
 function showPlanPicker(){planOverlay.classList.add('show');planOverlay.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
 function hidePlanPicker(){planOverlay.classList.remove('show');planOverlay.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 function continueAfterPlan(){let consent=null;try{consent=localStorage.getItem(consentKey);}catch(error){}if(!consent){banner.classList.add('show');}else if(pendingPremium){location.href='/cuenta.html?plan=premium';}}
-function choosePlan(plan){try{localStorage.setItem(planChoiceKey,plan);}catch(error){}pendingPremium=false;hidePlanPicker();if(plan==='premium'){location.assign('/cuenta.html?plan=premium');return;}continueAfterPlan();}
+function choosePlan(plan){try{sessionStorage.setItem(planChoiceKey,plan);}catch(error){}pendingPremium=false;hidePlanPicker();if(plan==='premium'){location.assign('/cuenta.html?plan=premium');return;}continueAfterPlan();}
 document.getElementById('chooseStandard').addEventListener('click',()=>choosePlan('standard'));
 document.getElementById('choosePremium').addEventListener('click',()=>choosePlan('premium'));
 document.getElementById('reopenPlans').addEventListener('click',showPlanPicker);
-let savedPlan=null;try{savedPlan=localStorage.getItem(planChoiceKey);}catch(error){}
+// La elección se recuerda solo durante esta pestaña/sesión. Así, una nueva visita
+// vuelve a mostrar los planes aunque el navegador conserve datos de visitas anteriores.
+let savedPlan=null;
+try{savedPlan=sessionStorage.getItem(planChoiceKey);}catch(error){}
 if(!savedPlan)showPlanPicker();
 else continueAfterPlan();
 
