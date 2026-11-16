@@ -1,7 +1,7 @@
 // POST /api/create-checkout — crea Checkout de Stripe para Premium mensual.
 const SUPABASE_URL="https://nddxgtppeqkhtjldwszq.supabase.co";
 const SUPABASE_PUBLIC_KEY="sb_publishable_dEkwD_UA7eW7wqTcsvmOkg_lq7yu0ST";
-const PRICE_ID="price_1Uc84UFMaZ6evlHlfIqv60jz";
+const PRICE_ID="price_1UcUEuFMaZ6evlHlyCkTDSAJ";
 const SITE_URL="https://el-area.mariogim462.workers.dev";
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
 export async function onRequestPost({request,env}){
