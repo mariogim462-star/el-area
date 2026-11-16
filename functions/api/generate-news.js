@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: POST /api/generate-news
-// OPENAI_API_KEY se recibe desde el Worker principal; Supabase autentica al redactor.
+// Las cuatro claves GROQ_API_KEY_* se reciben desde el Worker principal; Supabase autentica al redactor.
 // The caller must be an authenticated EL ÁREA admin. No article is published here.
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -8,9 +8,14 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 
 export async function onRequestPost({ request, env }) {
   try {
-    const openaiKey = request.headers.get("x-el-area-openai-key") || env.OPENAI_API_KEY;
-    if (!openaiKey || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-      return json({ error: "Falta configurar OPENAI_API_KEY en el Worker principal o la conexión de Supabase." }, 503);
+    const groqKeys = [
+      request.headers.get("x-el-area-groq-key-1") || env.GROQ_API_KEY_1,
+      request.headers.get("x-el-area-groq-key-2") || env.GROQ_API_KEY_2,
+      request.headers.get("x-el-area-groq-key-3") || env.GROQ_API_KEY_3,
+      request.headers.get("x-el-area-groq-key-4") || env.GROQ_API_KEY_4
+    ].map(key => String(key || "").trim()).filter(Boolean);
+    if (!groqKeys.length || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+      return json({ error: "Faltan las claves GROQ_API_KEY_1–4 en el Worker principal o la conexión de Supabase." }, 503);
     }
     const authorization = request.headers.get("Authorization") || "";
     if (!authorization.startsWith("Bearer ")) return json({ error: "Inicia sesión como administrador." }, 401);
@@ -72,21 +77,31 @@ export async function onRequestPost({ request, env }) {
       "La respuesta es un BORRADOR para revisión humana, no una publicación definitiva."
     ].join("\n");
     const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
-    const aiResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + openaiKey, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: env.OPENAI_MODEL || "gpt-6-astra",
-        tools: [{ type: "web_search" }],
-        input: [{ role: "developer", content: [{ type: "input_text", text: instructions }] }, { role: "user", content: [{ type: "input_text", text: userPrompt }] }],
-        text: { format: { type: "json_schema", name: "el_area_news_draft", strict: true, schema } }
-      })
-    });
-    const aiData = await aiResponse.json();
-    if (!aiResponse.ok) {
-      const message = aiData && aiData.error && aiData.error.message ? aiData.error.message : "Error del servicio de IA.";
-      return json({ error: message }, 502);
+    const groqPayload = {
+      model: env.GROQ_MODEL || "openai/gpt-oss-20b",
+      input: [{ role: "developer", content: [{ type: "input_text", text: instructions }] }, { role: "user", content: [{ type: "input_text", text: userPrompt }] }],
+      tool_choice: "required",
+      tools: [{ type: "browser_search" }],
+      text: { format: { type: "json_schema", name: "el_area_news_draft", strict: true, schema } }
+    };
+    let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
+    for (const key of groqKeys) {
+      try {
+        aiResponse = await fetch("https://api.groq.com/openai/v1/responses", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+          body: JSON.stringify(groqPayload)
+        });
+        aiData = await aiResponse.json();
+        if (aiResponse.ok) break;
+        lastGroqError = aiData?.error?.message || ("Groq respondió HTTP " + aiResponse.status);
+        // Prueba la siguiente clave ante límites, errores de autenticación o fallos del proveedor.
+        if (![401, 403, 408, 429].includes(aiResponse.status) && aiResponse.status < 500) break;
+      } catch (error) {
+        lastGroqError = error?.message || "No se pudo conectar con Groq.";
+      }
     }
+    if (!aiResponse?.ok) return json({ error: lastGroqError }, 502);
     let outputText = aiData.output_text;
     if (!outputText && Array.isArray(aiData.output)) {
       outputText = aiData.output.flatMap(item => item.content || []).filter(item => item.type === "output_text").map(item => item.text).join("\n");
