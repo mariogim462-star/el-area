@@ -19,7 +19,7 @@ async function saveSubscription(env,userId,customerId,subscription,service){
 export async function onRequestPost({request,env}){
  try{
   const hookSecret=webhookSecret(request,env),stripeKey=stripeSecret(request,env),service=serviceKey(request,env);
-  if(!hookSecret||!stripeKey||!env.SUPABASE_URL||!service)return json({error:"Webhook no configurado."},503);
+  if(!hookSecret||!stripeKey||!service)return json({error:"Webhook no configurado."},503);
   const raw=await request.text(),sig=request.headers.get("Stripe-Signature")||"";
   if(!await validSignature(raw,sig,hookSecret))return json({error:"Firma no válida."},400);
   const event=JSON.parse(raw);let sub=null,customerId=null,userId=null;
