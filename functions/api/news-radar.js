@@ -10,7 +10,7 @@ const decode = value => String(value || "").replace(/&amp;/g, "&").replace(/&lt;
 const parseRss = xml => [...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi)].slice(0, 30).map(match => {
   const itemXml = match[1];
   const get = tag => {
-    const found = itemXml.match(new RegExp("<" + tag + "(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\/" + tag + ">", "i"));
+    const found = itemXml.match(new RegExp("<" + tag + "(?:\\s[^>]*)?>([\\s\\S]*?)<\\/" + tag + ">", "i"));
     return found ? decode(found[1].replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/<[^>]*>/g, "").trim()) : "";
   };
   return { title: get("title"), link: get("link"), pubDate: get("pubDate"), author: get("source") || get("creator"), description: get("description"), content: get("description") };
