@@ -165,7 +165,7 @@
       const exactDateCount = items.filter(item => item.dateMatches).length;
       status.textContent = customQuery ? 'Resultados relacionados con «' + customQuery + '»: ' + items.length + '. ' + exactDateCount + ' con fecha confirmada para ' + selectedDate + '. ' + counts + '. Las noticias ya existentes se marcan, no se ocultan.' : 'Propuestas encontradas: ' + items.length + '. ' + exactDateCount + ' con fecha confirmada para ' + selectedDate + '. ' + counts + '. Las noticias ya existentes se marcan, no se ocultan.';
       if (sectionErrors.length) status.textContent += ' Secciones con error: ' + sectionErrors.join(' | ') + '.';
-      if (items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
+      if (!customQuery && items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
     } catch (error) {
       status.textContent = 'No se pudo completar la búsqueda: ' + error.message + '. Vuelve a intentarlo más tarde.';
     } finally { searchButton.disabled = false; }
