@@ -115,40 +115,43 @@
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const endDate = nextDate.toISOString().slice(0, 10);
       const sectionErrors = [];
-      const batches = [];
-      for (let categoryIndex = 0; categoryIndex < categories.length; categoryIndex++) {
-        const category = categories[categoryIndex];
-        if (categoryIndex > 0) await new Promise(resolve => setTimeout(resolve, 5200));
-        const batch = await (async () => {
+      status.textContent = 'Consultando las 5 secciones en paralelo…';
+      const batches = await Promise.all(categories.map(async category => {
         try {
-        const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
-        const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), { headers: { 'Accept': 'application/json' } });
-        const data = await response.json();
-        if (!Array.isArray(data.items)) throw new Error(data.error || 'No se pudieron obtener titulares de ' + category.name);
-        if (data.warning) sectionErrors.push(category.name + ': ' + data.warning);
-        const selected = [];
-        for (const raw of data.items) {
-          const title = cleanText(raw.title);
-          const key = normalize(title);
-          const date = raw.pubDate ? new Date(raw.pubDate) : null;
-          const itemDay = date && Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date) : '';
-          if (!title || !raw.link || !/^https?:\/\//i.test(raw.link) || itemDay !== selectedDate || seen.has(key)) continue;
-          seen.add(key);
-          selected.push({
-            title, excerpt: cleanText(raw.description || raw.content), link: raw.link,
-            date: raw.pubDate, source: raw.author || 'Google Noticias', category: category.name
+          const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
+          const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), {
+            headers: { 'Accept': 'application/json' }
           });
-          if (selected.length === 10) break;
-        }
-        return selected;
+          if (!response.ok) throw new Error('Error HTTP ' + response.status);
+          const data = await response.json();
+          if (!Array.isArray(data.items)) throw new Error(data.error || 'No se pudieron obtener titulares.');
+          if (data.warning) sectionErrors.push(category.name + ': ' + data.warning);
+          return data.items.map(raw => ({
+            title: cleanText(raw.title),
+            excerpt: cleanText(raw.description || raw.content),
+            link: raw.link,
+            date: raw.pubDate,
+            source: raw.author || 'Google Noticias',
+            category: category.name
+          }));
         } catch (sectionError) {
-          sectionErrors.push(category.name + ": " + sectionError.message);
+          sectionErrors.push(category.name + ': ' + sectionError.message);
           return [];
         }
-        })();
-        batches.push(batch);
+      }));
+      items = [];
+      for (const batch of batches) {
+        for (const item of batch) {
+          const key = normalize(item.title);
+          const date = item.date ? new Date(item.date) : null;
+          const itemDay = date && Number.isFinite(date.getTime())
+            ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
+            : '';
+          if (!item.title || !item.link || !/^https?:\\/\\//i.test(item.link) || itemDay !== selectedDate || seen.has(key)) continue;
+          seen.add(key);
+          if (items.filter(existingItem => existingItem.category === item.category).length < 10) items.push(item);
+        }
       }
-      items = batches.flat();
       render();
       const counts = categories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
       status.textContent = 'Propuestas encontradas para ' + selectedDate + ': ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
