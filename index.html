@@ -474,7 +474,7 @@ let pendingPremium=false;
 function showPlanPicker(){planOverlay.classList.add('show');planOverlay.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
 function hidePlanPicker(){planOverlay.classList.remove('show');planOverlay.setAttribute('aria-hidden','true');document.body.style.overflow='';}
 function continueAfterPlan(){let consent=null;try{consent=localStorage.getItem(consentKey);}catch(error){}if(!consent){banner.classList.add('show');}else if(pendingPremium){location.href='/cuenta.html?plan=premium';}}
-function choosePlan(plan){try{localStorage.setItem(planChoiceKey,plan);}catch(error){}pendingPremium=plan==='premium';hidePlanPicker();continueAfterPlan();}
+function choosePlan(plan){try{localStorage.setItem(planChoiceKey,plan);}catch(error){}pendingPremium=false;hidePlanPicker();if(plan==='premium'){location.assign('/cuenta.html?plan=premium');return;}continueAfterPlan();}
 document.getElementById('chooseStandard').addEventListener('click',()=>choosePlan('standard'));
 document.getElementById('choosePremium').addEventListener('click',()=>choosePlan('premium'));
 document.getElementById('reopenPlans').addEventListener('click',showPlanPicker);
