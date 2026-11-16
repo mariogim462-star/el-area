@@ -8,8 +8,9 @@ const json = (body, status = 200) => new Response(JSON.stringify(body), {
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.OPENAI_API_KEY || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
-      return json({ error: "Falta configurar OPENAI_API_KEY, SUPABASE_URL o SUPABASE_ANON_KEY en Cloudflare." }, 503);
+    const openaiKey = request.headers.get("x-el-area-openai-key") || env.OPENAI_API_KEY;
+    if (!openaiKey || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+      return json({ error: "Falta configurar OPENAI_API_KEY en el Worker principal o la conexión de Supabase." }, 503);
     }
     const authorization = request.headers.get("Authorization") || "";
     if (!authorization.startsWith("Bearer ")) return json({ error: "Inicia sesión como administrador." }, 401);
@@ -30,6 +31,14 @@ export async function onRequestPost({ request, env }) {
     const title = String(input.title || "").trim().slice(0, 240);
     const sourceUrl = String(input.url || "").trim();
     const category = String(input.category || "Fútbol").trim().slice(0, 80);
+    const requestedDate = String(input.date || "").trim();
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+    const targetDate = requestedDate || today;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) return json({ error: "La fecha debe tener formato AAAA-MM-DD." }, 400);
+    const [year, month, day] = targetDate.split("-").map(Number);
+    const dateCheck = new Date(Date.UTC(year, month - 1, day));
+    if (dateCheck.toISOString().slice(0, 10) !== targetDate) return json({ error: "La fecha seleccionada no es válida." }, 400);
+    if (targetDate > today) return json({ error: "No se pueden generar noticias de fechas futuras." }, 400);
     const requestedDate = String(input.date || "").trim();
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
     const targetDate = requestedDate || today;
@@ -61,6 +70,7 @@ export async function onRequestPost({ request, env }) {
     const instructions = [
       "Eres el redactor jefe de EL ÁREA, periódico digital de fútbol en español.",
       "Investiga la noticia de partida usando la herramienta web_search. Abre las páginas originales, no te bases solo en snippets.",
+      "La fecha editorial obligatoria es " + targetDate + " (zona Europe/Madrid). Solo incluye hechos publicados o sucedidos ese día; no presentes noticias de otros días como actuales. Si no puedes verificar la fecha, indícalo.",
       "La fecha editorial obligatoria es " + targetDate + " (zona Europe/Madrid). Solo puedes incluir hechos publicados o sucedidos en esa fecha; no uses noticias de otros días como si fueran de ese día. No inventes fecha de publicación si no puedes comprobarla.",
       "Contrasta los hechos con al menos DOS fuentes independientes y fiables cuando existan. Prioriza comunicados oficiales, clubes, ligas, federaciones, ruedas de prensa y medios reconocidos. Incluye la fuente de partida solo si aporta información verificable.",
       "Escribe una noticia COMPLETAMENTE ORIGINAL en español natural, con estructura periodística y estilo claro de EL ÁREA. No copies ni traduzcas frases de las fuentes ni imites literalmente su redacción. No inventes datos, citas, cifras, fechas ni contexto.",
@@ -70,7 +80,7 @@ export async function onRequestPost({ request, env }) {
       "En content usa párrafos separados por dos saltos de línea. No incluyas markdown ni enlaces inventados. Devuelve las fuentes consultadas por separado.",
       "La respuesta es un BORRADOR para revisión humana, no una publicación definitiva."
     ].join("\n");
-    const userPrompt = "Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones.";
+    const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
     const aiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: { Authorization: "Bearer " + openaiKey, "Content-Type": "application/json" },
