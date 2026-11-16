@@ -31,9 +31,9 @@ export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const originalQuery = (url.searchParams.get("q") || "").trim().slice(0, 500);
   if (!originalQuery) return json({ error: "Falta el término de búsqueda.", items: [] }, 400);
-  const dateMatch = originalQuery.match(/after:(\\d{4}-\\d{2}-\\d{2})/);
+  const dateMatch = originalQuery.match(/after:(\d{4}-\d{2}-\d{2})/);
   const selectedDate = dateMatch?.[1] || "";
-  const query = originalQuery.replace(/\\s+(?:after|before):\\d{4}-\\d{2}-\\d{2}/g, "").trim();
+  const query = originalQuery.replace(/\s+(?:after|before):\d{4}-\d{2}-\d{2}/g, "").trim();
   const cacheKey = new Request("https://el-area-cache.invalid/news-radar?q=" + encodeURIComponent(originalQuery));
   try { const cached = await caches.default.match(cacheKey); if (cached) return cached; } catch (_) {}
 
@@ -50,7 +50,7 @@ export async function onRequestGet({ request }) {
       const day = new Date(selectedDate + "T00:00:00Z");
       const from = new Date(day.getTime() - 86400000);
       const to = new Date(day.getTime() + 172800000 - 1000);
-      const stamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\\.\\d{3}Z$/, "Z");
+      const stamp = d => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
       gdelt.searchParams.set("startdatetime", stamp(from));
       gdelt.searchParams.set("enddatetime", stamp(to));
     } else gdelt.searchParams.set("timespan", "24h");
