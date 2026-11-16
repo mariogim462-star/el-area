@@ -110,7 +110,9 @@
       const nextDate = new Date(selectedDate + 'T00:00:00Z');
       nextDate.setUTCDate(nextDate.getUTCDate() + 1);
       const endDate = nextDate.toISOString().slice(0, 10);
+      const sectionErrors = [];
       const batches = await Promise.all(categories.map(async category => {
+        try {
         const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
         const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), { headers: { 'Accept': 'application/json' } });
         const data = await response.json();
@@ -131,11 +133,16 @@
           if (selected.length === 10) break;
         }
         return selected;
+        } catch (sectionError) {
+          sectionErrors.push(category.name + ": " + sectionError.message);
+          return [];
+        }
       }));
       items = batches.flat();
       render();
       const counts = categories.map(category => category.name + ': ' + items.filter(item => item.category === category.name).length).join(' · ');
       status.textContent = 'Propuestas encontradas para ' + selectedDate + ': ' + items.length + ' de 50. ' + counts + '. Se han excluido titulares repetidos y noticias que ya están en tu archivo cuando coinciden por título.';
+      if (sectionErrors.length) status.textContent += ' Secciones con error: ' + sectionErrors.join(' | ') + '.';
       if (items.length < 50) status.textContent += ' Algunas secciones no han devuelto 10 noticias recientes distintas; no se han rellenado con noticias antiguas o inventadas.';
     } catch (error) {
       status.textContent = 'No se pudo completar la búsqueda: ' + error.message + '. Vuelve a intentarlo más tarde.';
