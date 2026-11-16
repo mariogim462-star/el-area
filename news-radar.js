@@ -113,8 +113,8 @@
       const batches = await Promise.all(categories.map(async category => {
         const datedQuery = category.query + ' after:' + selectedDate + ' before:' + endDate;
         const response = await fetch('/api/news-radar?q=' + encodeURIComponent(datedQuery), { headers: { 'Accept': 'application/json' } });
-        if (!response.ok) throw new Error('El servicio de noticias respondió con HTTP ' + response.status + ' en ' + category.name);
         const data = await response.json();
+        if (!response.ok) throw new Error((data.error || 'El servicio de noticias respondió con HTTP ' + response.status) + ' en ' + category.name);
         if (!Array.isArray(data.items)) throw new Error(data.error || 'No se pudieron obtener titulares de ' + category.name);
         const selected = [];
         for (const raw of data.items) {
