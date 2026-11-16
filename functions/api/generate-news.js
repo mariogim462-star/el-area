@@ -1,5 +1,5 @@
 // Cloudflare Pages Function: POST /api/generate-news
-// Required Cloudflare secrets/variables: OPENAI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY.
+// OPENAI_API_KEY se recibe desde el Worker principal; Supabase autentica al redactor.
 // The caller must be an authenticated EL ÁREA admin. No article is published here.
 const json = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -30,6 +30,14 @@ export async function onRequestPost({ request, env }) {
     const title = String(input.title || "").trim().slice(0, 240);
     const sourceUrl = String(input.url || "").trim();
     const category = String(input.category || "Fútbol").trim().slice(0, 80);
+    const requestedDate = String(input.date || "").trim();
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+    const targetDate = requestedDate || today;
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(targetDate)) return json({ error: "La fecha debe tener formato AAAA-MM-DD." }, 400);
+    const [year, month, day] = targetDate.split("-").map(Number);
+    const dateCheck = new Date(Date.UTC(year, month - 1, day));
+    if (dateCheck.toISOString().slice(0, 10) !== targetDate) return json({ error: "La fecha seleccionada no es válida." }, 400);
+    if (targetDate > today) return json({ error: "No se pueden generar noticias de fechas futuras." }, 400);
     if (title.length < 8) return json({ error: "El titular de partida es demasiado corto." }, 400);
     let parsedUrl;
     try { parsedUrl = new URL(sourceUrl); } catch (_) { return json({ error: "El enlace de la fuente no es válido." }, 400); }
@@ -53,6 +61,7 @@ export async function onRequestPost({ request, env }) {
     const instructions = [
       "Eres el redactor jefe de EL ÁREA, periódico digital de fútbol en español.",
       "Investiga la noticia de partida usando la herramienta web_search. Abre las páginas originales, no te bases solo en snippets.",
+      "La fecha editorial obligatoria es " + targetDate + " (zona Europe/Madrid). Solo puedes incluir hechos publicados o sucedidos en esa fecha; no uses noticias de otros días como si fueran de ese día. No inventes fecha de publicación si no puedes comprobarla.",
       "Contrasta los hechos con al menos DOS fuentes independientes y fiables cuando existan. Prioriza comunicados oficiales, clubes, ligas, federaciones, ruedas de prensa y medios reconocidos. Incluye la fuente de partida solo si aporta información verificable.",
       "Escribe una noticia COMPLETAMENTE ORIGINAL en español natural, con estructura periodística y estilo claro de EL ÁREA. No copies ni traduzcas frases de las fuentes ni imites literalmente su redacción. No inventes datos, citas, cifras, fechas ni contexto.",
       "Si la noticia se basa en un rumor, atribúyelo de forma visible en el titular o el texto y deja claro que no está confirmado. Distingue hechos, versiones y opiniones.",
@@ -64,7 +73,7 @@ export async function onRequestPost({ request, env }) {
     const userPrompt = "Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones.";
     const aiResponse = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
-      headers: { Authorization: "Bearer " + env.OPENAI_API_KEY, "Content-Type": "application/json" },
+      headers: { Authorization: "Bearer " + openaiKey, "Content-Type": "application/json" },
       body: JSON.stringify({
         model: env.OPENAI_MODEL || "gpt-6-astra",
         tools: [{ type: "web_search" }],
