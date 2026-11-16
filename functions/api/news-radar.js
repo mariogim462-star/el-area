@@ -78,23 +78,59 @@ export async function onRequestGet({ request }) {
 
   // Feeds alternativos por si GDELT está temporalmente limitado.
   const google = new URL("https://news.google.com/rss/search");
-  google.searchParams.set("q", originalQuery); google.searchParams.set("hl", "es"); google.searchParams.set("gl", "ES"); google.searchParams.set("ceid", "ES:es");
+  google.searchParams.set("q", query); google.searchParams.set("hl", "es"); google.searchParams.set("gl", "ES"); google.searchParams.set("ceid", "ES:es");
   const bing = new URL("https://www.bing.com/news/search");
-  bing.searchParams.set("q", originalQuery); bing.searchParams.set("format", "rss"); bing.searchParams.set("setlang", "es-es");
+  bing.searchParams.set("q", query); bing.searchParams.set("format", "rss"); bing.searchParams.set("setlang", "es-es");
+  const headers = { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "User-Agent": "Mozilla/5.0 (compatible; ELAREA/1.0)" };
+  const collected = [];
   for (const feed of [{ name: "Google Noticias", url: google.toString() }, { name: "Bing Noticias", url: bing.toString() }]) {
     try {
-      const response = await fetch(feed.url, { headers: { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "User-Agent": "Mozilla/5.0 (compatible; ELAREA/1.0)" } });
+      const response = await fetch(feed.url, { headers });
       if (!response.ok) { failures.push(feed.name + " HTTP " + response.status); continue; }
-      const items = parseRss(await response.text());
-      if (items.length) {
-        const result = json({ items, provider: feed.name, warning: null });
-        try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
-        return result;
-      }
-      failures.push(feed.name + " devolvió un feed sin entradas reconocibles");
+      const parsed = parseRss(await response.text());
+      if (parsed.length) collected.push(...parsed.map(item => ({ ...item, author: item.author || feed.name })));
+      else failures.push(feed.name + " devolvió un feed sin entradas reconocibles");
     } catch (error) { failures.push(feed.name + ": " + (error?.message || "fallo de conexión")); }
   }
-  return json({ items: [], provider: null, warning: failures.join(" | ") || "No hay resultados disponibles." });
+
+  // Feeds RSS editoriales independientes: no dependen de Google/Bing ni de GDELT.
+  // Se filtran por el término solicitado y se muestran con su fecha real, aunque
+  // no coincida con el día seleccionado (la interfaz lo señala al redactor).
+  const tokens = query.toLocaleLowerCase("es").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").split(/[^a-z0-9]+/).filter(word => word.length > 2 && !["the","and","for","del","con","los","las","una","que","futbol","noticias"].includes(word));
+  const feeds = [
+    { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml" },
+    { name: "The Guardian · Fútbol", url: "https://www.theguardian.com/football/rss" }
+  ];
+  if (tokens.some(word => ["liverpool","reds","anfield"].includes(word))) {
+    feeds.unshift({ name: "The Guardian · Liverpool", url: "https://www.theguardian.com/football/liverpool/rss" });
+  }
+  const feedResults = await Promise.all(feeds.map(async feed => {
+    try {
+      const response = await fetch(feed.url, { headers });
+      if (!response.ok) { failures.push(feed.name + " HTTP " + response.status); return []; }
+      const parsed = parseRss(await response.text());
+      if (!parsed.length) { failures.push(feed.name + " devolvió un feed sin entradas reconocibles"); return []; }
+      return parsed.filter(item => {
+        if (!tokens.length) return true;
+        const haystack = (item.title + " " + item.description + " " + item.link).toLocaleLowerCase("es").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+        return tokens.some(token => haystack.includes(token));
+      }).map(item => ({ ...item, author: item.author || feed.name }));
+    } catch (error) { failures.push(feed.name + ": " + (error?.message || "fallo de conexión")); return []; }
+  }));
+  feedResults.forEach(batch => collected.push(...batch));
+
+  const unique = new Map();
+  for (const item of collected) {
+    const key = item.link || item.title;
+    if (key && !unique.has(key)) unique.set(key, item);
+  }
+  const items = [...unique.values()].slice(0, 75);
+  if (items.length) {
+    const result = json({ items, provider: "Fuentes RSS combinadas", warning: failures.length ? "Algunas fuentes no respondieron: " + failures.join(" | ") : null });
+    try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
+    return result;
+  }
+  return json({ items: [], provider: null, warning: failures.join(" | ") || "Las fuentes respondieron, pero no publicaron titulares que coincidan con el término buscado." });
 }
 export async function onRequest({ request }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-methods": "GET, OPTIONS", "access-control-allow-headers": "Accept" } });
