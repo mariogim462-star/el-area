@@ -1,0 +1,71 @@
+(() => {
+  "use strict";
+  if (window.__elAreaAmazonAdsStarted) return;
+  window.__elAreaAmazonAdsStarted = true;
+  const links = [
+    "https://link.amazon/B0fGw5xEw",
+    "https://link.amazon/B0ayG2EB9",
+    "https://link.amazon/B053rvW61",
+    "https://link.amazon/B00tIiadK",
+    "https://link.amazon/B0a6S5g9w"
+  ];
+  const interval = 5 * 60 * 1000;
+  let premium = false, index = 0, overlay, timer;
+  const activeSub = sub => !!sub && ["active","trialing"].includes(sub.status) &&
+    (!sub.current_period_end || new Date(sub.current_period_end) > new Date());
+  function hideAd() { if (overlay) overlay.remove(); overlay = null; }
+  function showAd() {
+    if (premium || overlay || document.hidden) return;
+    const href = links[index++ % links.length];
+    overlay = document.createElement("div");
+    overlay.setAttribute("role","dialog");
+    overlay.setAttribute("aria-modal","true");
+    overlay.setAttribute("aria-label","Anuncio de Amazon");
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(8,13,18,.78);display:flex;align-items:center;justify-content:center;padding:18px";
+    const card = document.createElement("section");
+    card.style.cssText = "position:relative;width:min(440px,100%);background:#fff;color:#171717;border-radius:14px;padding:30px 24px 24px;text-align:center;box-shadow:0 20px 70px #0007;font-family:Arial,sans-serif";
+    const close = document.createElement("button");
+    close.type = "button"; close.textContent = "×"; close.setAttribute("aria-label","Cerrar anuncio");
+    close.style.cssText = "position:absolute;right:12px;top:8px;border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:24px;cursor:pointer;color:#222";
+    close.addEventListener("click",hideAd);
+    const tag = document.createElement("small"); tag.textContent = "ANUNCIO · RECOMENDACIÓN";
+    tag.style.cssText = "font-size:10px;font-weight:900;letter-spacing:1.5px;color:#777";
+    const title = document.createElement("h2"); title.textContent = "Una recomendación para los amantes del fútbol";
+    title.style.cssText = "font-size:23px;line-height:1.15;margin:15px 0 10px";
+    const copy = document.createElement("p"); copy.textContent = "Descubre este producto en Amazon.";
+    copy.style.cssText = "font-size:14px;color:#666;line-height:1.5;margin:0 0 20px";
+    const link = document.createElement("a"); link.href = href; link.target = "_blank"; link.rel = "sponsored nofollow noopener noreferrer"; link.textContent = "Ver recomendación en Amazon";
+    link.style.cssText = "display:block;background:#c8102e;color:white;text-decoration:none;padding:14px 18px;border-radius:7px;font-size:13px;font-weight:900";
+    const note = document.createElement("p"); note.textContent = "EL ÁREA puede recibir una comisión por compras que cumplan los requisitos del programa de afiliados.";
+    note.style.cssText = "font-size:10px;color:#888;line-height:1.4;margin:16px 0 0";
+    card.append(close,tag,title,copy,link,note); overlay.append(card);
+    overlay.addEventListener("click",e=>{if(e.target===overlay)hideAd();});
+    document.addEventListener("keydown",onKey);
+    function onKey(e){if(e.key==="Escape"){hideAd();document.removeEventListener("keydown",onKey);}}
+    close.addEventListener("click",()=>document.removeEventListener("keydown",onKey),{once:true});
+    document.body.append(overlay);
+  }
+  async function checkPremium() {
+    try {
+      if (!window.supabase || !window.EL_AREA_SUPABASE_URL || !window.EL_AREA_SUPABASE_ANON_KEY) return;
+      const db = window.supabase.createClient(window.EL_AREA_SUPABASE_URL,window.EL_AREA_SUPABASE_ANON_KEY);
+      const {data} = await db.auth.getSession();
+      const user = data?.session?.user;
+      if (!user) { premium=false; return; }
+      const {data:sub} = await db.from("subscriptions").select("status,current_period_end").eq("user_id",user.id).maybeSingle();
+      premium = activeSub(sub);
+      if (premium) hideAd();
+      db.auth.onAuthStateChange(async (_event,session) => {
+        if (!session) { premium=false; return; }
+        const {data:next} = await db.from("subscriptions").select("status,current_period_end").eq("user_id",session.user.id).maybeSingle();
+        premium=activeSub(next);
+        if (premium) hideAd();
+      });
+    } catch (_) { premium=false; }
+  }
+  function start() {
+    checkPremium();
+    timer = window.setInterval(() => { if (!premium) showAd(); }, interval);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",start,{once:true}); else start();
+})();
