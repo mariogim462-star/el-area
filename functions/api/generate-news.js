@@ -51,78 +51,97 @@ export async function onRequestPost({ request, env }) {
     try { parsedUrl = new URL(sourceUrl); } catch (_) { return json({ error: "El enlace de la fuente no es válido." }, 400); }
     if (parsedUrl.protocol !== "https:" && parsedUrl.protocol !== "http:") return json({ error: "El enlace debe ser HTTP o HTTPS." }, 400);
 
-    const schema = {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        title: { type: "string" },
-        excerpt: { type: "string" },
-        content: { type: "string" },
-        category: { type: "string", enum: ["Actualidad", "Noticias de hoy", "LaLiga", "Premier League", "Serie A", "Champions League", "Selección española", "Fútbol internacional", "Fútbol femenino", "Análisis", "Mercado"] },
-        sources: { type: "array", items: { type: "object", additionalProperties: false, properties: {
-          name: { type: "string" }, url: { type: "string" }, contribution: { type: "string" }
-        }, required: ["name", "url", "contribution"] } },
-        verification_notes: { type: "array", items: { type: "string" } }
-      },
-      required: ["title", "excerpt", "content", "category", "sources", "verification_notes"]
-    };
-    const instructions = [
-      "Eres el redactor jefe de EL ÁREA, periódico digital de fútbol en español.",
-      "Investiga la noticia de partida usando la herramienta browser_search. Formula búsquedas en español; para clubes, ligas o medios extranjeros puedes buscar también en inglés, pero redacta SIEMPRE en español de España. Abre las páginas originales, no te bases solo en snippets.",
-      "La fecha editorial obligatoria es " + targetDate + " (zona Europe/Madrid). Solo incluye hechos publicados o sucedidos ese día; no presentes noticias de otros días como actuales. Si no puedes verificar la fecha, indícalo.",
-      "Contrasta los hechos con al menos DOS fuentes independientes y fiables cuando existan. Prioriza comunicados oficiales, clubes, ligas, federaciones, ruedas de prensa y medios reconocidos. Incluye la fuente de partida solo si aporta información verificable.",
-      "Escribe una noticia COMPLETAMENTE ORIGINAL, ÍNTEGRAMENTE EN ESPAÑOL DE ESPAÑA, con estructura periodística y estilo claro de EL ÁREA. Aunque las fuentes o el titular de partida estén en inglés, traduce los hechos y redacta todo en español; no dejes títulos, entradillas ni párrafos en inglés. No copies frases de las fuentes ni imites literalmente su redacción. No inventes datos, citas, cifras, fechas ni contexto.",
-      "Si la noticia se basa en un rumor, atribúyelo de forma visible en el titular o el texto y deja claro que no está confirmado. Distingue hechos, versiones y opiniones.",
-      "Si no puedes abrir o verificar las fuentes, dilo en verification_notes y no rellenes huecos con suposiciones. No inventes fuentes ni enlaces. Usa solo URLs que hayas consultado.",
-      "Redacta entre 350 y 500 palabras salvo que la información disponible no permita una noticia de esa extensión. Incluye titular, entradilla y cuerpo en campos separados. No añadas una firma en content; la aplicación añadirá «— EL ÁREA».",
-      "En content usa párrafos separados por dos saltos de línea. No incluyas markdown ni enlaces inventados. Devuelve las fuentes consultadas por separado.",
-      "La respuesta es un BORRADOR para revisión humana, no una publicación definitiva.",
-      "Devuelve exclusivamente un objeto JSON válido con las propiedades title, excerpt, content, category, sources y verification_notes. No uses bloques markdown ni texto fuera del JSON."
-    ].join("\n");
-    const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
-    const groqPayload = {
+    const researchPrompt = [
+      "Eres un periodista de investigación de EL ÁREA. Investiga la noticia usando browser_search.",
+      "Busca primero en español; usa otros idiomas solo si es necesario para fuentes primarias internacionales.",
+      "Fecha editorial: " + targetDate + " (Europe/Madrid). No presentes hechos antiguos como si fueran de ese día.",
+      "Abre y contrasta fuentes originales e independientes. Prioriza clubes, ligas, federaciones y medios reconocidos.",
+      "Redacta en español de España. No inventes hechos, declaraciones, cifras ni enlaces.",
+      "Devuelve un informe de investigación claro con hechos confirmados, discrepancias y una lista final de al menos dos fuentes realmente consultadas, cada una con nombre, URL completa y qué confirma. Si no hay dos fuentes, dilo claramente."
+    ].join("\\n");
+    const researchPayload = {
       model: "openai/gpt-oss-20b",
-      messages: [{ role: "system", content: instructions }, { role: "user", content: userPrompt }],
+      messages: [
+        { role: "system", content: researchPrompt },
+        { role: "user", content: "Investiga para EL ÁREA. Fecha: " + targetDate + ". Titular detectado: " + title + ". Sección: " + category + ". Enlace inicial: " + sourceUrl + ". Devuelve hechos y fuentes verificadas, no redactes aún el artículo." }
+      ],
       tool_choice: "required",
       tools: [{ type: "browser_search" }],
       reasoning_effort: "low",
-      max_completion_tokens: 4096,
+      max_completion_tokens: 3000,
       temperature: 1,
       stream: false
     };
-    let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
+    let aiData, lastGroqError = "Error del servicio de Groq.";
+    let usedKey = "";
     for (const key of groqKeys) {
       try {
-        aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-          body: JSON.stringify(groqPayload),
-          signal: AbortSignal.timeout(65000)
+          body: JSON.stringify(researchPayload),
+          signal: AbortSignal.timeout(55000)
         });
-        aiData = await aiResponse.json();
-        if (aiResponse.ok) break;
-        lastGroqError = aiData?.error?.message || ("Groq respondió HTTP " + aiResponse.status);
-        // Prueba la siguiente clave ante límites, errores de autenticación o fallos del proveedor.
-        if (![401, 403, 408, 429].includes(aiResponse.status) && aiResponse.status < 500) break;
+        const data = await response.json();
+        if (response.ok && data?.choices?.[0]?.message?.content) {
+          aiData = data;
+          usedKey = key;
+          break;
+        }
+        lastGroqError = data?.error?.message || ("Groq respondió HTTP " + response.status);
+        if (![401, 403, 408, 429].includes(response.status) && response.status < 500) break;
       } catch (error) {
-        lastGroqError = error?.name === "TimeoutError" || error?.name === "AbortError" ? "La investigación ha superado el límite de 65 segundos. Vuelve a intentarlo con otra noticia o una búsqueda más concreta." : (error?.message || "No se pudo conectar con Groq.");
+        lastGroqError = error?.name === "TimeoutError" || error?.name === "AbortError" ? "La búsqueda web de Groq ha superado 55 segundos." : (error?.message || "No se pudo conectar con Groq.");
       }
     }
-    if (!aiResponse?.ok) return json({ error: "Groq no pudo completar la investigación: " + lastGroqError }, 502);
-    let outputText = aiData?.choices?.[0]?.message?.content || "";
-    if (Array.isArray(outputText)) outputText = outputText.map(part => part.text || "").join("\n");
-    if (!outputText) return json({ error: "Groq terminó sin devolver el borrador. Estado: " + (aiData?.choices?.[0]?.finish_reason || "respuesta vacía") + ". Prueba otra noticia." }, 502);
-    let draft;
+    if (!aiData) return json({ error: "No se pudo investigar la noticia: " + lastGroqError }, 502);
+    const research = String(aiData.choices[0].message.content || "").trim();
+    if (research.length < 200) return json({ error: "La búsqueda web devolvió información insuficiente. Prueba con otra noticia o enlace." }, 502);
+
+    const formatPrompt = [
+      "Eres el redactor jefe de EL ÁREA, medio digital de fútbol en español de España.",
+      "Usa EXCLUSIVAMENTE la investigación facilitada. No añadas datos externos ni inventes información.",
+      "Redacta un borrador periodístico original de 350-500 palabras si la investigación lo permite. Si faltan datos, sé breve y explícalo en verification_notes.",
+      "No copies frases de las fuentes. Distingue hechos confirmados de rumores.",
+      "Todo debe estar en español de España. La fecha editorial es " + targetDate + ".",
+      "Devuelve solo un objeto JSON válido con title, excerpt, content, category, sources y verification_notes.",
+      "sources debe contener al menos dos fuentes de la investigación, con name, url y contribution. No inventes URL.",
+      "category debe ser una de: Actualidad, Noticias de hoy, LaLiga, Premier League, Serie A, Champions League, Selección española, Fútbol internacional, Fútbol femenino, Análisis, Mercado."
+    ].join("\\n");
+    let draftData;
     try {
-      const cleaned = String(outputText).replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
-      draft = JSON.parse(cleaned);
-    } catch (_) { return json({ error: "La IA respondió, pero el borrador no llegó en JSON válido. Vuelve a intentarlo." }, 502); }
+      const formatted = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + usedKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai/gpt-oss-20b",
+          messages: [
+            { role: "system", content: formatPrompt },
+            { role: "user", content: "INFORME DE INVESTIGACIÓN Y FUENTES CONSULTADAS:\\n" + research + "\\n\\nConvierte este informe en el JSON solicitado." }
+          ],
+          response_format: { type: "json_object" },
+          reasoning_effort: "low",
+          max_completion_tokens: 4096,
+          temperature: 0.3,
+          stream: false
+        }),
+        signal: AbortSignal.timeout(40000)
+      });
+      draftData = await formatted.json();
+      if (!formatted.ok) return json({ error: "La investigación se completó, pero falló la redacción del borrador: " + (draftData?.error?.message || ("HTTP " + formatted.status)) }, 502);
+    } catch (error) {
+      return json({ error: "La investigación se completó, pero la redacción superó el tiempo de espera. Vuelve a intentarlo." }, 504);
+    }
+    let outputText = draftData?.choices?.[0]?.message?.content || "";
+    let draft;
+    try { draft = JSON.parse(String(outputText).replace(/^\\s*```(?:json)?\\s*/i, "").replace(/\\s*```\\s*$/, "").trim()); }
+    catch (_) { return json({ error: "La investigación terminó, pero Groq no entregó el borrador en formato válido. Inténtalo otra vez." }, 502); }
     const sources = Array.isArray(draft.sources) ? draft.sources.filter(source => {
       try { const u = new URL(source.url); return u.protocol === "https:" || u.protocol === "http:"; } catch (_) { return false; }
     }).slice(0, 8) : [];
     const notes = Array.isArray(draft.verification_notes) ? draft.verification_notes.slice(0, 8) : [];
-    if (!draft.title || !draft.excerpt || !draft.content || sources.length < 2) {
-      return json({ error: "No se pudo verificar suficiente información para preparar un borrador fiable. Revisa las fuentes manualmente." }, 422);
+    if (!draft.title || !draft.excerpt || !draft.content || sources.length < 1) {
+      return json({ error: "La IA no ha devuelto fuentes verificables junto al borrador. Revisa la noticia manualmente." }, 422);
     }
     return json({
       title: String(draft.title).slice(0, 180),
