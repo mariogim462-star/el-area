@@ -78,7 +78,7 @@ export async function onRequestGet({ request }) {
 
   // Feeds alternativos por si GDELT está temporalmente limitado.
   const google = new URL("https://news.google.com/rss/search");
-  google.searchParams.set("q", query); google.searchParams.set("hl", "es"); google.searchParams.set("gl", "ES"); google.searchParams.set("ceid", "ES:es");
+  google.searchParams.set("q", query + (selectedDate ? " after:" + selectedDate + " before:" + new Date(new Date(selectedDate + "T00:00:00Z").getTime() + 86400000).toISOString().slice(0,10) : " when:1d")); google.searchParams.set("hl", "es"); google.searchParams.set("gl", "ES"); google.searchParams.set("ceid", "ES:es");
   const bing = new URL("https://www.bing.com/news/search");
   bing.searchParams.set("q", query); bing.searchParams.set("format", "rss"); bing.searchParams.set("setlang", "es-es");
   const headers = { "Accept": "application/rss+xml, application/atom+xml, application/xml, text/xml", "User-Agent": "Mozilla/5.0 (compatible; ELAREA/1.0)" };
@@ -98,12 +98,9 @@ export async function onRequestGet({ request }) {
   // no coincida con el día seleccionado (la interfaz lo señala al redactor).
   const tokens = query.toLocaleLowerCase("es").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").split(/[^a-z0-9]+/).filter(word => word.length > 2 && !["the","and","for","del","con","los","las","una","que","futbol","noticias"].includes(word));
   const feeds = [
-    { name: "BBC Sport", url: "https://feeds.bbci.co.uk/sport/football/rss.xml" },
-    { name: "The Guardian · Fútbol", url: "https://www.theguardian.com/football/rss" }
+    { name: "MARCA · Fútbol", url: "https://e00-marca.uecdn.es/rss/futbol.xml" },
+    { name: "AS · Fútbol", url: "https://feeds.as.com/mrss-s/pages/as/site/as.com/section/futbol/portada/" }
   ];
-  if (tokens.some(word => ["liverpool","reds","anfield"].includes(word))) {
-    feeds.unshift({ name: "The Guardian · Liverpool", url: "https://www.theguardian.com/football/liverpool/rss" });
-  }
   const feedResults = await Promise.all(feeds.map(async feed => {
     try {
       const response = await fetch(feed.url, { headers });
