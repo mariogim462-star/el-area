@@ -64,7 +64,7 @@
     button.disabled = true;
     const originalLabel = button.textContent;
     button.textContent = 'Investigando fuentes y redactando…';
-    status.textContent = 'La IA está contrastando la noticia con varias fuentes. Puede tardar un poco…';
+    status.textContent = 'La IA está contrastando fuentes y redactará el borrador en español. El proceso tiene un límite de 100 segundos…';
     try {
       const { data: sessionData, error: sessionError } = await db.auth.getSession();
       const token = sessionData && sessionData.session && sessionData.session.access_token;
@@ -72,7 +72,8 @@
       const response = await fetch('/api/generate-news', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify({ title: item.title, url: item.link, category: item.category, date: dateInput.value })
+        body: JSON.stringify({ title: item.title, url: item.link, category: item.category, date: dateInput.value }),
+        signal: AbortSignal.timeout(100000)
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'No se pudo generar el borrador.');
@@ -93,7 +94,8 @@
       document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
       document.getElementById('title').focus({ preventScroll: true });
     } catch (error) {
-      status.textContent = 'No se ha guardado ningún borrador: ' + error.message;
+      const message = error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'La IA ha tardado demasiado (100 segundos). No se ha guardado ningún borrador; prueba con otra noticia.' : error.message;
+      status.textContent = 'No se ha guardado ningún borrador: ' + message;
     } finally {
       button.disabled = false;
       button.textContent = originalLabel;
