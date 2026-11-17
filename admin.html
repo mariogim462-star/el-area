@@ -68,7 +68,7 @@
   if(error){out.textContent='Ejecuta supabase/site-settings-editor.sql en Supabase para activar este editor: '+error.message;return;}
   const value=data?.value||{};
   document.getElementById('adImageUrl').value=value.image_url||'';
-  document.getElementById('adLinks').value=(value.links||[]).join('\\n');
+  document.getElementById('adLinks').value=(value.links||[]).join('\n');
   out.textContent='Configuración visual cargada.';
  }
  document.getElementById('saveSiteSettings').addEventListener('click',async()=>{
@@ -76,13 +76,13 @@
   let imageUrl=document.getElementById('adImageUrl').value.trim();
   const file=document.getElementById('adImageFile').files[0];
   if(file){
-   if(!/^image\\/(jpeg|png|webp)$/.test(file.type)||file.size>8*1024*1024){out.textContent='La imagen debe ser JPG, PNG o WEBP y pesar menos de 8 MB.';return;}
-   const path='ads/'+Date.now()+'-'+file.name.toLowerCase().replace(/[^a-z0-9.\\-_]/g,'-');
+   if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>8*1024*1024){out.textContent='La imagen debe ser JPG, PNG o WEBP y pesar menos de 8 MB.';return;}
+   const path='ads/'+Date.now()+'-'+file.name.toLowerCase().replace(/[^a-z0-9.\-_]/g,'-');
    const {error}=await db.storage.from('article-images').upload(path,file,{upsert:false,contentType:file.type});
    if(error){out.textContent='No se pudo subir la imagen: '+error.message;return;}
    imageUrl=db.storage.from('article-images').getPublicUrl(path).data.publicUrl;
   }
-  const links=document.getElementById('adLinks').value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+  const links=document.getElementById('adLinks').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   if(links.some(x=>{try{const u=new URL(x);return !['https:'].includes(u.protocol)}catch{return true}})){out.textContent='Todos los enlaces deben ser URL HTTPS válidas.';return;}
   const {error}=await db.from('site_settings').upsert({key:'advertising',value:{links,image_url:imageUrl},updated_at:new Date().toISOString(),updated_by:currentUser.id},{onConflict:'key'});
   out.textContent=error?'No se pudo guardar: '+error.message:'Cambios guardados. Se aplicarán en la web al recargar.';
