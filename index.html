@@ -519,7 +519,7 @@ try{savedPlan=sessionStorage.getItem(planChoiceKey);}catch(error){}
 if(!savedPlan)showPlanPicker();
 else continueAfterPlan();
 
-function saveCookieChoice(choice){try{localStorage.setItem(consentKey,choice);}catch(error){}banner.classList.remove('show');if(pendingPremium)location.href='/cuenta.html?plan=premium';}
+function saveCookieChoice(choice){try{localStorage.setItem(consentKey,choice);}catch(error){}banner.classList.remove('show');if(choice==='notice-accepted')recordVisit(location.pathname);if(pendingPremium)location.href='/cuenta.html?plan=premium';}
 document.getElementById('acceptEssential').addEventListener('click',()=>saveCookieChoice('notice-accepted'));
 document.getElementById('rejectOptional').addEventListener('click',()=>saveCookieChoice('optional-rejected'));
 document.getElementById('reopenConsent').addEventListener('click',()=>banner.classList.add('show'));
