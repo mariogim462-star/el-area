@@ -68,7 +68,7 @@ export async function onRequestPost({ request, env }) {
     };
     const instructions = [
       "Eres el redactor jefe de EL ÁREA, periódico digital de fútbol en español.",
-      "Investiga la noticia de partida usando la herramienta web_search. Abre las páginas originales, no te bases solo en snippets.",
+      "Investiga la noticia de partida usando la herramienta browser_search. Formula búsquedas en español; para clubes, ligas o medios extranjeros puedes buscar también en inglés, pero redacta SIEMPRE en español de España. Abre las páginas originales, no te bases solo en snippets.",
       "La fecha editorial obligatoria es " + targetDate + " (zona Europe/Madrid). Solo incluye hechos publicados o sucedidos ese día; no presentes noticias de otros días como actuales. Si no puedes verificar la fecha, indícalo.",
       "Contrasta los hechos con al menos DOS fuentes independientes y fiables cuando existan. Prioriza comunicados oficiales, clubes, ligas, federaciones, ruedas de prensa y medios reconocidos. Incluye la fuente de partida solo si aporta información verificable.",
       "Escribe una noticia COMPLETAMENTE ORIGINAL en español natural, con estructura periodística y estilo claro de EL ÁREA. No copies ni traduzcas frases de las fuentes ni imites literalmente su redacción. No inventes datos, citas, cifras, fechas ni contexto.",
@@ -84,7 +84,9 @@ export async function onRequestPost({ request, env }) {
       model: env.GROQ_MODEL || "openai/gpt-oss-20b",
       input: [{ role: "developer", content: [{ type: "input_text", text: instructions }] }, { role: "user", content: [{ type: "input_text", text: userPrompt }] }],
       tool_choice: "required",
-      tools: [{ type: "browser_search" }]
+      tools: [{ type: "browser_search" }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 6000
     };
     let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
     for (const key of groqKeys) {
@@ -92,7 +94,8 @@ export async function onRequestPost({ request, env }) {
         aiResponse = await fetch("https://api.groq.com/openai/v1/responses", {
           method: "POST",
           headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-          body: JSON.stringify(groqPayload)
+          body: JSON.stringify(groqPayload),
+          signal: AbortSignal.timeout(95000)
         });
         aiData = await aiResponse.json();
         if (aiResponse.ok) break;
@@ -100,7 +103,7 @@ export async function onRequestPost({ request, env }) {
         // Prueba la siguiente clave ante límites, errores de autenticación o fallos del proveedor.
         if (![401, 403, 408, 429].includes(aiResponse.status) && aiResponse.status < 500) break;
       } catch (error) {
-        lastGroqError = error?.message || "No se pudo conectar con Groq.";
+        lastGroqError = error?.name === "TimeoutError" || error?.name === "AbortError" ? "La investigación ha superado el límite de 95 segundos. Vuelve a intentarlo con otra noticia o una búsqueda más concreta." : (error?.message || "No se pudo conectar con Groq.");
       }
     }
     if (!aiResponse?.ok) return json({ error: lastGroqError }, 502);
