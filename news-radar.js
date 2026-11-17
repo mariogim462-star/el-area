@@ -73,10 +73,12 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ title: item.title, url: item.link, category: item.category, date: dateInput.value }),
-        signal: AbortSignal.timeout(100000)
+        signal: AbortSignal.timeout(70000)
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'No se pudo generar el borrador.');
+      const rawResponse = await response.text();
+      let data;
+      try { data = JSON.parse(rawResponse); } catch (_) { throw new Error('El servidor devolvió una respuesta no válida (HTTP ' + response.status + ').'); }
+      if (!response.ok) throw new Error((data.error || 'No se pudo generar el borrador.') + ' (HTTP ' + response.status + ')');
       document.getElementById('title').value = data.title;
       document.getElementById('category').value = data.category;
       document.getElementById('excerpt').value = data.excerpt;
@@ -94,7 +96,7 @@
       document.getElementById('articleForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
       document.getElementById('title').focus({ preventScroll: true });
     } catch (error) {
-      const message = error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'La IA ha tardado demasiado (100 segundos). No se ha guardado ningún borrador; prueba con otra noticia.' : error.message;
+      const message = error?.name === 'TimeoutError' || error?.name === 'AbortError' ? 'La IA ha tardado demasiado (70 segundos). No se ha guardado ningún borrador; prueba con otra noticia.' : error.message;
       status.textContent = 'No se ha guardado ningún borrador: ' + message;
     } finally {
       button.disabled = false;
