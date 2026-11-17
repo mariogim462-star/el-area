@@ -58,7 +58,7 @@ export async function onRequestPost({ request, env }) {
       "Abre y contrasta fuentes originales e independientes. Prioriza clubes, ligas, federaciones y medios reconocidos.",
       "Redacta en español de España. No inventes hechos, declaraciones, cifras ni enlaces.",
       "Devuelve un informe de investigación claro con hechos confirmados, discrepancias y una lista final de al menos dos fuentes realmente consultadas, cada una con nombre, URL completa y qué confirma. Si no hay dos fuentes, dilo claramente."
-    ].join("\\n");
+    ].join("\n");
     const researchPayload = {
       model: "openai/gpt-oss-20b",
       messages: [
@@ -107,7 +107,7 @@ export async function onRequestPost({ request, env }) {
       "Devuelve solo un objeto JSON válido con title, excerpt, content, category, sources y verification_notes.",
       "sources debe contener al menos dos fuentes de la investigación, con name, url y contribution. No inventes URL.",
       "category debe ser una de: Actualidad, Noticias de hoy, LaLiga, Premier League, Serie A, Champions League, Selección española, Fútbol internacional, Fútbol femenino, Análisis, Mercado."
-    ].join("\\n");
+    ].join("\n");
     let draftData;
     try {
       const formatted = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -117,7 +117,7 @@ export async function onRequestPost({ request, env }) {
           model: "openai/gpt-oss-20b",
           messages: [
             { role: "system", content: formatPrompt },
-            { role: "user", content: "INFORME DE INVESTIGACIÓN Y FUENTES CONSULTADAS:\\n" + research + "\\n\\nConvierte este informe en el JSON solicitado." }
+            { role: "user", content: "INFORME DE INVESTIGACIÓN Y FUENTES CONSULTADAS:\n" + research + "\n\nConvierte este informe en el JSON solicitado." }
           ],
           response_format: { type: "json_object" },
           reasoning_effort: "low",
@@ -134,7 +134,7 @@ export async function onRequestPost({ request, env }) {
     }
     let outputText = draftData?.choices?.[0]?.message?.content || "";
     let draft;
-    try { draft = JSON.parse(String(outputText).replace(/^\\s*```(?:json)?\\s*/i, "").replace(/\\s*```\\s*$/, "").trim()); }
+    try { draft = JSON.parse(String(outputText).replace(/^\s*```(?:json)?\\s*/i, "").replace(/\s*```\s*$/, "").trim()); }
     catch (_) { return json({ error: "La investigación terminó, pero Groq no entregó el borrador en formato válido. Inténtalo otra vez." }, 502); }
     const sources = Array.isArray(draft.sources) ? draft.sources.filter(source => {
       try { const u = new URL(source.url); return u.protocol === "https:" || u.protocol === "http:"; } catch (_) { return false; }
