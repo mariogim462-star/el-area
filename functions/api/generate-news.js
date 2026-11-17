@@ -110,25 +110,34 @@ export async function onRequestPost({ request, env }) {
     ].join("\n");
     let draftData;
     try {
-      const formatted = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: "Bearer " + usedKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-20b",
-          messages: [
-            { role: "system", content: formatPrompt },
-            { role: "user", content: "INFORME DE INVESTIGACIÓN Y FUENTES CONSULTADAS:\n" + research + "\n\nConvierte este informe en el JSON solicitado." }
-          ],
-          response_format: { type: "json_object" },
-          reasoning_effort: "low",
-          max_completion_tokens: 4096,
-          temperature: 0.3,
-          stream: false
-        }),
-        signal: AbortSignal.timeout(40000)
-      });
-      draftData = await formatted.json();
-      if (!formatted.ok) return json({ error: "La investigación se completó, pero falló la redacción del borrador: " + (draftData?.error?.message || ("HTTP " + formatted.status)) }, 502);
+      const draftMessages = [
+        { role: "system", content: formatPrompt },
+        { role: "user", content: "INFORME DE INVESTIGACIÓN Y FUENTES CONSULTADAS:\n" + research + "\n\nConvierte este informe en el JSON solicitado." }
+      ];
+      let formatted, formatError = "";
+      // Si se agota el cupo diario de GPT-OSS 20B, intenta el modelo 120B,
+      // que dispone de un límite independiente y admite JSON mode.
+      for (const model of ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
+        formatted = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + usedKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: draftMessages,
+            response_format: { type: "json_object" },
+            reasoning_effort: "low",
+            max_completion_tokens: 4096,
+            temperature: 0.3,
+            stream: false
+          }),
+          signal: AbortSignal.timeout(40000)
+        });
+        draftData = await formatted.json();
+        if (formatted.ok && draftData?.choices?.[0]?.message?.content) break;
+        formatError = draftData?.error?.message || ("HTTP " + formatted.status);
+        if (!(formatted.status === 429 || /tokens per day|TPD|rate limit/i.test(formatError))) break;
+      }
+      if (!formatted?.ok) return json({ error: "La investigación se completó, pero no se pudo redactar. Se intentaron GPT-OSS 20B y 120B. " + formatError }, 502);
     } catch (error) {
       return json({ error: "La investigación se completó, pero la redacción superó el tiempo de espera. Vuelve a intentarlo." }, 504);
     }
