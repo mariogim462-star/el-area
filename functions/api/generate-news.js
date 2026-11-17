@@ -81,13 +81,14 @@ export async function onRequestPost({ request, env }) {
     ].join("\n");
     const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
     const groqPayload = {
-      model: env.GROQ_MODEL || "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-20b",
       messages: [{ role: "system", content: instructions }, { role: "user", content: userPrompt }],
       tool_choice: "required",
       tools: [{ type: "browser_search" }],
       reasoning_effort: "low",
-      max_completion_tokens: 6000,
-      temperature: 0.2
+      max_completion_tokens: 4096,
+      temperature: 1,
+      stream: false
     };
     let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
     for (const key of groqKeys) {
@@ -96,7 +97,7 @@ export async function onRequestPost({ request, env }) {
           method: "POST",
           headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
           body: JSON.stringify(groqPayload),
-          signal: AbortSignal.timeout(95000)
+          signal: AbortSignal.timeout(65000)
         });
         aiData = await aiResponse.json();
         if (aiResponse.ok) break;
@@ -104,13 +105,13 @@ export async function onRequestPost({ request, env }) {
         // Prueba la siguiente clave ante límites, errores de autenticación o fallos del proveedor.
         if (![401, 403, 408, 429].includes(aiResponse.status) && aiResponse.status < 500) break;
       } catch (error) {
-        lastGroqError = error?.name === "TimeoutError" || error?.name === "AbortError" ? "La investigación ha superado el límite de 95 segundos. Vuelve a intentarlo con otra noticia o una búsqueda más concreta." : (error?.message || "No se pudo conectar con Groq.");
+        lastGroqError = error?.name === "TimeoutError" || error?.name === "AbortError" ? "La investigación ha superado el límite de 65 segundos. Vuelve a intentarlo con otra noticia o una búsqueda más concreta." : (error?.message || "No se pudo conectar con Groq.");
       }
     }
-    if (!aiResponse?.ok) return json({ error: lastGroqError }, 502);
+    if (!aiResponse?.ok) return json({ error: "Groq no pudo completar la investigación: " + lastGroqError }, 502);
     let outputText = aiData?.choices?.[0]?.message?.content || "";
     if (Array.isArray(outputText)) outputText = outputText.map(part => part.text || "").join("\n");
-    if (!outputText) return json({ error: "Groq respondió, pero no devolvió texto. Detalle: " + (aiData?.choices?.[0]?.finish_reason || "respuesta vacía") }, 502);
+    if (!outputText) return json({ error: "Groq terminó sin devolver el borrador. Estado: " + (aiData?.choices?.[0]?.finish_reason || "respuesta vacía") + ". Prueba otra noticia." }, 502);
     let draft;
     try {
       const cleaned = String(outputText).replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
