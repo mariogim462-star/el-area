@@ -34,7 +34,7 @@ export async function onRequestGet({ request }) {
   const dateMatch = originalQuery.match(/after:(\d{4}-\d{2}-\d{2})/);
   const selectedDate = dateMatch?.[1] || "";
   const query = originalQuery.replace(/\s+(?:after|before):\d{4}-\d{2}-\d{2}/g, "").trim();
-  const cacheKey = new Request("https://el-area-cache.invalid/news-radar?q=" + encodeURIComponent(originalQuery));
+  const cacheKey = new Request("https://el-area-cache.invalid/news-radar-v2?q=" + encodeURIComponent(originalQuery));
   try { const cached = await caches.default.match(cacheKey); if (cached) return cached; } catch (_) {}
 
   const failures = [];
@@ -66,8 +66,9 @@ export async function onRequestGet({ request }) {
           const isoDate = rawDate.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
           return { title: article.title || "", link: article.url || article.url_mobile || "", pubDate: isoDate || rawDate, author: article.domain || article.sourcecountry || "GDELT", description: "", content: "" };
         }).filter(item => item.title && /^https?:\/\//i.test(item.link));
-        if (items.length) {
-          const result = json({ items, provider: "GDELT", warning: null });
+        const exactItems = selectedDate ? items.filter(item => { const d = new Date(item.pubDate); return Number.isFinite(d.getTime()) && new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(d) === selectedDate; }) : items;
+        if (exactItems.length) {
+          const result = json({ items: exactItems, provider: "GDELT", warning: null });
           try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
           return result;
         }
@@ -121,13 +122,16 @@ export async function onRequestGet({ request }) {
     const key = item.link || item.title;
     if (key && !unique.has(key)) unique.set(key, item);
   }
-  const items = [...unique.values()].slice(0, 75);
+  const allItems = [...unique.values()];
+  // En búsquedas fechadas, solo devolver publicaciones cuya fecha real coincide con el día elegido en Madrid.
+  const datedItems = selectedDate ? allItems.filter(item => { const d = new Date(item.pubDate); return Number.isFinite(d.getTime()) && new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" }).format(d) === selectedDate; }) : allItems;
+  const items = datedItems.slice(0, 75);
   if (items.length) {
     const result = json({ items, provider: "Fuentes RSS combinadas", warning: failures.length ? "Algunas fuentes no respondieron: " + failures.join(" | ") : null });
     try { await caches.default.put(cacheKey, result.clone()); } catch (_) {}
     return result;
   }
-  return json({ items: [], provider: null, warning: failures.join(" | ") || "Las fuentes respondieron, pero no publicaron titulares que coincidan con el término buscado." });
+  return json({ items: [], provider: null, warning: (selectedDate ? "No se encontraron publicaciones con fecha confirmada para " + selectedDate + ". " : "") + (failures.join(" | ") || "Las fuentes respondieron, pero no publicaron titulares que coincidan con el término buscado.") });
 }
 export async function onRequest({ request }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { "access-control-allow-methods": "GET, OPTIONS", "access-control-allow-headers": "Accept" } });
