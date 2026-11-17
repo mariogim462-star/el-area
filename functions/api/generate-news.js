@@ -82,16 +82,17 @@ export async function onRequestPost({ request, env }) {
     const userPrompt = "Fecha que debe cubrir la noticia: " + targetDate + " (Europe/Madrid). Noticia detectada: " + title + "\nSección sugerida: " + category + "\nFuente inicial: " + sourceUrl + "\n\nInvestiga y redacta el borrador siguiendo todas las instrucciones. Si la fuente es de otro día, no la uses como noticia del día solicitado.";
     const groqPayload = {
       model: env.GROQ_MODEL || "openai/gpt-oss-20b",
-      input: [{ role: "developer", content: [{ type: "input_text", text: instructions }] }, { role: "user", content: [{ type: "input_text", text: userPrompt }] }],
+      messages: [{ role: "system", content: instructions }, { role: "user", content: userPrompt }],
       tool_choice: "required",
       tools: [{ type: "browser_search" }],
-      reasoning: { effort: "low" },
-      max_output_tokens: 6000
+      reasoning_effort: "low",
+      max_completion_tokens: 6000,
+      temperature: 0.2
     };
     let aiResponse, aiData, lastGroqError = "Error del servicio de Groq.";
     for (const key of groqKeys) {
       try {
-        aiResponse = await fetch("https://api.groq.com/openai/v1/responses", {
+        aiResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
           body: JSON.stringify(groqPayload),
@@ -107,13 +108,14 @@ export async function onRequestPost({ request, env }) {
       }
     }
     if (!aiResponse?.ok) return json({ error: lastGroqError }, 502);
-    let outputText = aiData.output_text;
-    if (!outputText && Array.isArray(aiData.output)) {
-      outputText = aiData.output.flatMap(item => item.content || []).filter(item => item.type === "output_text").map(item => item.text).join("\n");
-    }
-    if (!outputText) return json({ error: "La IA no devolvió un borrador utilizable." }, 502);
+    let outputText = aiData?.choices?.[0]?.message?.content || "";
+    if (Array.isArray(outputText)) outputText = outputText.map(part => part.text || "").join("\n");
+    if (!outputText) return json({ error: "Groq respondió, pero no devolvió texto. Detalle: " + (aiData?.choices?.[0]?.finish_reason || "respuesta vacía") }, 502);
     let draft;
-    try { draft = JSON.parse(outputText); } catch (_) { return json({ error: "La respuesta de IA no tenía el formato esperado. Inténtalo de nuevo." }, 502); }
+    try {
+      const cleaned = String(outputText).replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+      draft = JSON.parse(cleaned);
+    } catch (_) { return json({ error: "La IA respondió, pero el borrador no llegó en JSON válido. Vuelve a intentarlo." }, 502); }
     const sources = Array.isArray(draft.sources) ? draft.sources.filter(source => {
       try { const u = new URL(source.url); return u.protocol === "https:" || u.protocol === "http:"; } catch (_) { return false; }
     }).slice(0, 8) : [];
