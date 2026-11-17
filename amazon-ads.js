@@ -53,8 +53,39 @@
       const db=window.supabase.createClient(window.EL_AREA_SUPABASE_URL,window.EL_AREA_SUPABASE_ANON_KEY);
       const {data}=await db.from("site_settings").select("value").eq("key","advertising").maybeSingle();
       if(data?.value){
-        if(Array.isArray(data.value.links)&&data.value.links.length) links=data.value.links.filter(x=>typeof x==="string"&&x.startsWith("https://"));
+        if(Array.isArray(data.value.links)) {
+          const validLinks=data.value.links.filter(x=>typeof x==="string"&&x.startsWith("https://"));
+          if(validLinks.length) links=validLinks;
+        }
         if(typeof data.value.image_url==="string") adImageUrl=data.value.image_url;
+        // Aplicar la configuración también a los anuncios visibles de la página,
+        // no solo al anuncio emergente temporizado.
+        document.querySelectorAll(".affiliate-ad").forEach(slot=>{
+          const list=slot.querySelector(".affiliate-links");
+          if(list){
+            list.replaceChildren();
+            links.forEach((href,i)=>{
+              const a=document.createElement("a");
+              a.href=href; a.target="_blank";
+              a.rel="sponsored nofollow noopener noreferrer";
+              a.textContent="Ver recomendación "+(i+1)+" en Amazon ↗";
+              list.append(a);
+            });
+          }
+          const oldImage=slot.querySelector(".managed-ad-image");
+          if(oldImage) oldImage.remove();
+          if(adImageUrl){
+            const img=document.createElement("img");
+            img.className="managed-ad-image";
+            img.src=adImageUrl;
+            img.alt="Anuncio de EL ÁREA";
+            img.loading="lazy";
+            img.style.cssText="display:block;width:100%;max-height:220px;object-fit:contain;margin:12px auto;border-radius:8px";
+            const heading=slot.querySelector("strong");
+            if(heading) heading.insertAdjacentElement("afterend",img);
+            else slot.prepend(img);
+          }
+        });
       }
     } catch (_) {}
   }
