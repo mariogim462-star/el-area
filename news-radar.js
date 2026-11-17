@@ -151,7 +151,7 @@
       items = [];
       for (const batch of batches) {
         for (const item of batch) {
-          const key = normalize(item.title);
+          const key = item.category + "|" + normalize(item.title);
           const date = item.date ? new Date(item.date) : null;
           const itemDay = date && Number.isFinite(date.getTime())
             ? new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date)
