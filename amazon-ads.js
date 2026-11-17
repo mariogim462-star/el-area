@@ -2,13 +2,14 @@
   "use strict";
   if (window.__elAreaAmazonAdsStarted) return;
   window.__elAreaAmazonAdsStarted = true;
-  const links = [
+  let links = [
     "https://link.amazon/B0fGw5xEw",
     "https://link.amazon/B0ayG2EB9",
     "https://link.amazon/B053rvW61",
     "https://link.amazon/B00tIiadK",
     "https://link.amazon/B0a6S5g9w"
   ];
+  let adImageUrl = "";
   const interval = 5 * 60 * 1000;
   let premium = false, index = 0, overlay, timer;
   const activeSub = sub => !!sub && ["active","trialing"].includes(sub.status) &&
@@ -32,6 +33,7 @@
     tag.style.cssText = "font-size:10px;font-weight:900;letter-spacing:1.5px;color:#777";
     const title = document.createElement("h2"); title.textContent = "Una recomendación para los amantes del fútbol";
     title.style.cssText = "font-size:23px;line-height:1.15;margin:15px 0 10px";
+    if (adImageUrl) { const img=document.createElement("img"); img.src=adImageUrl; img.alt="Imagen del anuncio"; img.style.cssText="display:block;width:100%;max-height:190px;object-fit:contain;margin:12px auto;border-radius:8px"; card.append(img); }
     const copy = document.createElement("p"); copy.textContent = "Descubre este producto en Amazon.";
     copy.style.cssText = "font-size:14px;color:#666;line-height:1.5;margin:0 0 20px";
     const link = document.createElement("a"); link.href = href; link.target = "_blank"; link.rel = "sponsored nofollow noopener noreferrer"; link.textContent = "Ver recomendación en Amazon";
@@ -44,6 +46,17 @@
     function onKey(e){if(e.key==="Escape"){hideAd();document.removeEventListener("keydown",onKey);}}
     close.addEventListener("click",()=>document.removeEventListener("keydown",onKey),{once:true});
     document.body.append(overlay);
+  }
+  async function loadAdSettings() {
+    try {
+      if (!window.supabase || !window.EL_AREA_SUPABASE_URL || !window.EL_AREA_SUPABASE_ANON_KEY) return;
+      const db=window.supabase.createClient(window.EL_AREA_SUPABASE_URL,window.EL_AREA_SUPABASE_ANON_KEY);
+      const {data}=await db.from("site_settings").select("value").eq("key","advertising").maybeSingle();
+      if(data?.value){
+        if(Array.isArray(data.value.links)&&data.value.links.length) links=data.value.links.filter(x=>typeof x==="string"&&x.startsWith("https://"));
+        if(typeof data.value.image_url==="string") adImageUrl=data.value.image_url;
+      }
+    } catch (_) {}
   }
   async function checkPremium() {
     try {
@@ -63,8 +76,9 @@
       });
     } catch (_) { premium=false; }
   }
-  function start() {
-    checkPremium();
+  async function start() {
+    await loadAdSettings();
+    await checkPremium();
     timer = window.setInterval(() => { if (!premium) showAd(); }, interval);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",start,{once:true}); else start();
